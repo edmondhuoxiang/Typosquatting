@@ -1,4 +1,4 @@
-package org.chris.dnsproc
+package org.edmond.dnsproc_park
 import org.apache.hadoop.filecache.DistributedCache
 import scala.math._
 
