@@ -53,7 +53,7 @@ class DLDistance {
        dist(s1.length)(s2.length)
     }
 
-    def insertion(originStr: String, pos: Int): Array[String] ={
+    def insert(originStr: String, pos: Int): Array[String] ={
       val insertArray = new scala.collection.mutable.ArrayBuffer[String]()
       val insertStr = new scala.collection.mutable.StringBuilder()
       for (i <- 0 until 26){
@@ -66,14 +66,14 @@ class DLDistance {
       return insertArray.toArray
     } 
 
-    def deletion(originStr: String, pos: Int): String ={
+    def del(originStr: String, pos: Int): String ={
       val deletionStr = new scala.collection.mutable.StringBuilder()
       deletionStr.append(originStr)
       deletionStr.deleteCharAt(pos)
       return deletionStr.toString
     }   
 
-    def substitution(originStr: String, pos: Int): Array[String]= {
+    def subs(originStr: String, pos: Int): Array[String]= {
       val substitutionArray = new scala.collection.mutable.ArrayBuffer[String]()
       val substitutionStr = new scala.collection.mutable.StringBuilder()
       for(i <- 0 until 26){
@@ -87,41 +87,54 @@ class DLDistance {
       return substitutionArray.toArray
     }
 
-    
+    def trans(originStr: String): Array[String] = {
+      val transArray = new scala.collection.mutable.ArrayBuffer[String]()
+      val transStr = new scala.collection.mutable.StringBuilder()
+      for(i <- 0 until originStr.length-1){
+        transStr.append(originStr)
+        val char = originStr.charAt(i)
+        transStr.deleteCharAt(i)
+        transStr.insert(i+1, char)
+        transArray += transStr.toString
+        transStr.clear()
+      }
+      return transArray.toArray
+    }
 
-    def typoCandidate(originStr: String): = Array[String]{
+    def typoCandidate(originStr: String): Array[String] = {
       val result = new scala.collection.mutable.ArrayBuffer[String]()
       
       //all possible typo with insertion
       for(i <- 0 until originStr.length+1){
-        val arr = insertion(originStr, i)
+        val arr = insert(originStr, i)
         result.appendAll(arr)
       }
 
       //all possible typo with deletion
       for(i <- 0 until originStr.length){
-        val str = deletion(originStr, i)
+        val str = del(originStr, i)
         result.append(str)
       }
 
       //all possible typo with substitution
       for(i <- 0 until originStr.length){
-        val arr = substitution(originStr, i)
+        val arr = subs(originStr, i)
         result.appendAll(arr)
       }
       //all possible type with transposition
-
-
-    }
+      val arr = trans(originStr)
+      result.appendAll(arr)
+    return result.distinct.toArray
+  }
 }
 
 object DLDistance {
 
-  val test_values = "once" :: "upon" :: "A" :: "time" :: "test" :: "tset" :: "tsett" :: Nil
-
+  //val test_values = "once" :: "upon" :: "A" :: "time" :: "test" :: "tset" :: "tsett" :: Nil
+    val test_values = new DLDistance().typoCandidate("testvalues")
     def main(args: Array[String]): Unit = {
       for(t <- test_values) {
-        println(t + " " + new DLDistance().distance(t,"test"))
+        println(t + " " + new DLDistance().distance(t,"testvalues"))
       }
     }
 }
