@@ -2,6 +2,16 @@ package org.edmond.dnsproc_park
 import org.apache.hadoop.filecache.DistributedCache
 import scala.math._
 
+import spark.SparkContext
+import spark.SparkContext._
+
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
+
+import scala.io.Source
+import scala.io._
+import java.io.File
+
 /* Implementation of pseudocode found at
 http://en.wikipedia.org/wiki/Damerau%E2%80%93Levenshtein_distance
 for Damerau-Levenschtein edit distance.
@@ -131,10 +141,36 @@ class DLDistance {
 object DLDistance {
 
   //val test_values = "once" :: "upon" :: "A" :: "time" :: "test" :: "tset" :: "tsett" :: Nil
-    val test_values = new DLDistance().typoCandidate("testvalues")
+  /*  val test_values = new DLDistance().typoCandidate("testvalues")
     def main(args: Array[String]): Unit = {
       for(t <- test_values) {
         println(t + " " + new DLDistance().distance(t,"testvalues"))
       }
     }
+  */
+  def main(args: Array[String]): Unit = {
+    val outPath = "./typocandidate/"
+    //val sourceFile = "./weblist/500_1000"
+    val sourceFile = "./weblist/test.file"
+    Logger.getLogger("spark").setLevel(Level.INFO)
+
+    //initiate SparkContext
+    val sparkHome = "/Users/edmond/spark-0.7.3"
+    val jarFile = "target/scala-2.9.3/dnsudf_spark_2.9.3-0.0.jar"
+    val master = "local[20]"
+    val sc = new SparkContext(master, "dnsudf_spark", sparkHome, Seq(jarFile))
+
+    //read correct version from file
+    val original_data = sc.textFile(sourceFile)
+    original_data.foreach(l => {
+      println("Processing " + l)
+      val res = new DLDistance().typoCandidate(l)
+      val outFile = new java.io.FileWriter(outPath + l)
+      for(s <- res)
+        outFile.write(s + "\n")
+      outFile.close
+      })
+
+  }
+  
 }
