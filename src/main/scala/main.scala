@@ -4,6 +4,7 @@ import org.edmond.dnsproc_park._
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
 
+
 import spark.SparkContext
 import spark.SparkContext._
 
@@ -47,7 +48,8 @@ object Main extends Application{
 
    override def main(args: Array[String]): Unit = {
    	val outPath = "./res/"
-   	Logger.getLogger("spark").setLevel(Level.WARN)
+   	Logger.getLogger("spark").setLevel(Level.INFO)
+
    	val sparkHome = "/Users/edmond/spark-0.7.3"
    	val jarFile = "target/scala-2.9.3/dnsudf_spark_2.9.3-0.0.jar"
    	val master = "local[20]"
