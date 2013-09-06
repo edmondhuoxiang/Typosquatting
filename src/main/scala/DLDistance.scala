@@ -87,12 +87,33 @@ class DLDistance {
       val substitutionArray = new scala.collection.mutable.ArrayBuffer[String]()
       val substitutionStr = new scala.collection.mutable.StringBuilder()
       for(i <- 0 until 26){
+        substitutionStr.clear()
         substitutionStr.append(originStr)
         val char = 'a' + i
-        substitutionStr.deleteCharAt(pos)
-        substitutionStr.insert(pos, char.asInstanceOf[Char])
-        substitutionArray += substitutionStr.toString
+        val c = originStr.charAt(pos)
+        if (c!=char){
+          substitutionStr.deleteCharAt(pos)
+          substitutionStr.insert(pos, char.asInstanceOf[Char])
+          substitutionArray += substitutionStr.toString
+        }
+      }
+      for(i <- 0 until 10){
         substitutionStr.clear()
+        substitutionStr.append(originStr)
+        val num = '0' + i
+        val c = originStr.charAt(pos)
+        if(c!=num){
+          substitutionStr.deleteCharAt(pos)
+          substitutionStr.insert(pos, num.asInstanceOf[Char])
+          substitutionArray += substitutionStr.toString
+        }
+      }
+      if(originStr.charAt(pos)=='.'){
+        substitutionStr.clear()
+        substitutionStr.append(originStr)
+        substitutionStr.deleteCharAt(pos)
+        substitutionStr.insert(pos,','.asInstanceOf[Char])
+        substitutionArray += substitutionStr.toString
       }
       return substitutionArray.toArray
     }
@@ -101,12 +122,14 @@ class DLDistance {
       val transArray = new scala.collection.mutable.ArrayBuffer[String]()
       val transStr = new scala.collection.mutable.StringBuilder()
       for(i <- 0 until originStr.length-1){
-        transStr.append(originStr)
-        val char = originStr.charAt(i)
-        transStr.deleteCharAt(i)
-        transStr.insert(i+1, char)
-        transArray += transStr.toString
-        transStr.clear()
+        if(originStr.charAt(i)!=originStr.charAt(i+1)){    
+          transStr.append(originStr)
+          val char = originStr.charAt(i)
+          transStr.deleteCharAt(i)
+          transStr.insert(i+1, char)
+          transArray += transStr.toString
+          transStr.clear()
+        }
       }
       return transArray.toArray
     }
