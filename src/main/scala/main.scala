@@ -1,6 +1,6 @@
 package org.edmond.Main
 
-import org.edmond.dnsproc_park._
+import org.edmond.dnsproc_spark._
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
 

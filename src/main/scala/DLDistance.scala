@@ -1,4 +1,4 @@
-package org.edmond.dnsproc_park
+package org.edmond.DLDistance
 import org.apache.hadoop.filecache.DistributedCache
 import scala.math._
 
@@ -159,6 +159,7 @@ class DLDistance {
       result.appendAll(arr)
     return result.distinct.toArray
   }
+
 }
 
 object DLDistance {
@@ -173,8 +174,8 @@ object DLDistance {
   */
   def main(args: Array[String]): Unit = {
     val outPath = "./typocandidate/"
-    //val sourceFile = "./weblist/500_1000"
-    val sourceFile = "./weblist/test.file"
+    val sourceFile = "./weblist/500_1000"
+    //val sourceFile = "./weblist/test.file"
     Logger.getLogger("spark").setLevel(Level.INFO)
 
     //initiate SparkContext

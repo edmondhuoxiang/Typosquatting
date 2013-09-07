@@ -1,4 +1,4 @@
-package org.edmond.dnsproc_park
+package org.edmond.dnsproc_spark
 
 import spark.SparkContext
 import spark.SparkContext._
