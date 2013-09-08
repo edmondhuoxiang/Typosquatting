@@ -47,11 +47,14 @@ class parseUtils{
 	def convertStampToFilename(timestamp: Int): Array[String] ={
 		// Convert timestamp in second to filename
 		val initial_timestamp = 1354320000
+		val end_timestamp = 1356916500
 		val interval = 300
 		var mid_timestamp = 0
 		val err = 21600
 		if(timestamp < initial_timestamp)
 			mid_timestamp = initial_timestamp
+		else if(timestamp > end_timestamp)
+			mid_timestamp = end_timestamp
 		else{
 			val dist = (timestamp - initial_timestamp) % 300
 			if(dist < 150){
@@ -59,7 +62,7 @@ class parseUtils{
 			}else
 				mid_timestamp = timestamp + 300 - dist
 		}
-		if(mid_timestamp > initial_timestamp){
+		if(mid_timestamp > initial_timestamp && mid_timestamp < end_timestamp){
 			val date1 = convertStampToDate(mid_timestamp - interval + err)
 			val date_string1 = convertDateToString(date1)
 			val filename1 = "raw_processed." + date_string1 + ".*.0.gz"
@@ -74,16 +77,30 @@ class parseUtils{
 
 			return Array(filename1, filename2, filename3)
 		}
-		else{
-			val date2 = convertStampToDate(mid_timestamp + err)
-			val date_string2 = convertDateToString(date2)
-			val filename2 = "raw_processed." + date_string2 + ".*.0.gz"
+		else
+		{
+			if(mid_timestamp == initial_timestamp){
+				val date2 = convertStampToDate(mid_timestamp + err)
+				val date_string2 = convertDateToString(date2)
+				val filename2 = "raw_processed." + date_string2 + ".*.0.gz"
 
-			val date3 = convertStampToDate(mid_timestamp + interval + err)
-			val date_string3 = convertDateToString(date3)
-			val filename3 = "raw_processed." + date_string3 + ".*.0.gz"
+				val date3 = convertStampToDate(mid_timestamp + interval + err)
+				val date_string3 = convertDateToString(date3)
+				val filename3 = "raw_processed." + date_string3 + ".*.0.gz"
 
-			return Array(filename2, filename3)
+				return Array(filename2, filename3)
+			}
+			else{
+				val date1 = convertStampToDate(mid_timestamp - interval + err)
+				val date_string1 = convertDateToString(date1)
+				val filename1 = "raw_processed." + date_string1 + ".*.0.gz"
+
+				val date2 = convertStampToDate(mid_timestamp + err)
+				val date_string2 = convertDateToString(date2)
+				val filename2 = "raw_processed." + date_string2 + ".*.0.gz"
+
+				return Array(filename1, filename2)
+			}
 		}
 	}
 }
