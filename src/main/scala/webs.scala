@@ -25,32 +25,38 @@ object webs extends Application {
 	  val sc = new SparkContext(master, "dnsudf_spark", sparkHome, Seq(jarFile))
 
 	  val outPath = "./res/"
+	  val dataPath = "/data1/sie/ch202/201212/"
 
 	  //Reading correct domain name from file
 	  val sourceFile = "./weblist/500_1000"
-	  val weblist = sc.textFile(sourceFile).cache
+	  val webList = sc.textFile(sourceFile).cache
 
 	  //Read DNS records 
-	  val original_data = sc.textFile("/data1/sie/ch202/201212/*.0.gz")
+	  val original_data = sc.textFile("/data1/sie/ch202/201212/raw_processed.201212*.gz")
 
 	  //Parse answer
 	  val data = original_data.map(x => new ParseDNSFast().convert(x))
 
-	  val oneDomain = weblist.take(1).apply(0)
-	  //val oneDomain = "google.com"
-	  println("Domain: " + oneDomain)
-	  val hitRecords = data.filter(r => {
-	  	val tmp = new parseUtils().parseDomain(r._5, oneDomain)
-	  	//println(tmp)
-	  	tmp.equalsIgnoreCase(oneDomain+".")
-	  	})
-	  val timestamp = hitRecords.map(r => r._1).toArray
-	  for(t <- timestamp){
-	  	data.filter(r => ((t - r._1) < 60 && (t - r._1) > 0)).filter(r => {
+	  for(oneDomain <- webList.toArray){
+	  	println("Domain: " + oneDomain)
+	  	val hitRecords = data.filter(r => {
 	  		val tmp = new parseUtils().parseDomain(r._5, oneDomain)
-	  		val distance = new DLDistance().distance(tmp, oneDomain)
-	  		distance <= 2
-	  		}).foreach(println)
+	  		//println(tmp)
+	  		tmp.equalsIgnoreCase(oneDomain+".")
+	  		})
+	  	val timestamp = hitRecords.map(r => r._1).toArray
+	  	for(t <- timestamp){
+	  		println("TIMESTAMP: " + t)
+	  		val filename = new parseUtils().convertStampToFilename(t)
+	  		println("FILE: " + filename)
+	  		val partial_data = sc.textFile(dataPath + filename).map(x => new ParseDNSFast().convert(x))
+	  		partial_data.filter(r => ((t - r._1) < 60 && (t - r._1) > 0)).filter(r => {
+	  			val tmp = new parseUtils().parseDomain(r._5, oneDomain)
+	  			val distance = new DLDistance().distance(tmp, oneDomain)
+	  			distance <= 2 && distance > 0
+	  			}).foreach(println)
+	  	}
+
 	  }
 	}
 }
