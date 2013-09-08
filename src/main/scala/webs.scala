@@ -44,18 +44,25 @@ object webs extends Application {
 	  		//println(tmp)
 	  		tmp.equalsIgnoreCase(oneDomain+".")
 	  		})
+	  	val outFile = new java.io.FileWriter(outPath + oneDomain)
 	  	val timestamp = hitRecords.map(r => r._1).toArray
+
 	  	for(t <- timestamp){
 	  		println("TIMESTAMP: " + t)
 	  		val filename = new parseUtils().convertStampToFilename(t)
-	  		println("FILE: " + filename)
-	  		val partial_data = sc.textFile(dataPath + filename).map(x => new ParseDNSFast().convert(x))
-	  		partial_data.filter(r => ((t - r._1) < 60 && (t - r._1) > 0)).filter(r => {
-	  			val tmp = new parseUtils().parseDomain(r._5, oneDomain)
-	  			val distance = new DLDistance().distance(tmp, oneDomain)
-	  			distance <= 2 && distance > 0
-	  			}).foreach(println)
+	  		for(name <- filename){
+	  			val partial_data = sc.textFile(dataPath + name).map(x => new ParseDNSFast().convert(x))
+	  			partial_data.filter(r => ((t - r._1) < 60 && (t - r._1) > 0)).filter(r => {
+	  				val tmp = new parseUtils().parseDomain(r._5, oneDomain)
+	  				val distance = new DLDistance().distance(tmp, oneDomain)
+	  				distance <= 2 && distance > 0
+	  				}).foreach(r => {
+	  					val str = r._1.toString + "," + r._2.toString + "," + r._3 + "," +r._4 + "," + r._5 + "\n"
+	  					outFile.write(str)
+	  					})
+	  		}
 	  	}
+	  	outFile.close
 
 	  }
 	}

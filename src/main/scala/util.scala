@@ -40,14 +40,19 @@ class parseUtils{
 			num = num - num_2
 		// Using DateFormat format method to create a string
 		// representation of a date with the defined format.
-		val report = df.format(date) + num.toString
+		var report = df.format(date)
+		if (num < 10)
+			report += 0.toString + num.toString
+		else
+			report += num.toString
 		return report
 	}
 
 def convertStampToFilename(timestamp: Int): Array[String] ={
 		// Convert timestamp in second to filename
 		val initial_timestamp = 1354320000
-		val end_timestamp = 1356916500
+		//val end_timestamp = 1356916500 //local machine
+		val end_timestamp = 1354324800
 		val interval = 300
 		var mid_timestamp = 0
 		val err = 21600
