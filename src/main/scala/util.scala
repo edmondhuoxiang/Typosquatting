@@ -44,7 +44,7 @@ class parseUtils{
 		return report
 	}
 
-	def convertStampToFilename(timestamp: Int): Array[String] ={
+def convertStampToFilename(timestamp: Int): Array[String] ={
 		// Convert timestamp in second to filename
 		val initial_timestamp = 1354320000
 		val end_timestamp = 1356916500
@@ -102,5 +102,5 @@ class parseUtils{
 				return Array(filename1, filename2)
 			}
 		}
-	}
+	}	
 }
