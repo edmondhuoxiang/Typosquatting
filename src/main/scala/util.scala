@@ -50,9 +50,10 @@ class parseUtils{
 
 def convertStampToFilename(timestamp: Int): Array[String] ={
 		// Convert timestamp in second to filename
-		val initial_timestamp = 1354320000
+		//val initial_timestamp = 1354320000 //local machine
 		//val end_timestamp = 1356916500 //local machine
-		val end_timestamp = 1354324800
+		val initial_timestamp = 1354323600 //server side
+		val end_timestamp = 1354324800 //server side
 		val interval = 300
 		var mid_timestamp = 0
 		val err = 21600

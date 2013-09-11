@@ -14,8 +14,8 @@ import scala.io.Source
 import scala.io._
 import java.io.File
 
-object webs extends Application {
-	override def main(args: Array[String]): Unit = {
+object webs extends Serializable {
+	def main(args: Array[String]): Unit = {
 
 	  Logger.getLogger("spark").setLevel(Level.INFO)
 
@@ -37,33 +37,62 @@ object webs extends Application {
 	  //Parse answer
 	  val data = original_data.map(x => new ParseDNSFast().convert(x))
 
-	  for(oneDomain <- webList.toArray){
+	  /*
+	  webList.foreach( oneDomain => {
+	  //for(oneDomain <- webList.toArray){
 	  	println("Domain: " + oneDomain)
 	  	val hitRecords = data.filter(r => {
 	  		val tmp = new parseUtils().parseDomain(r._5, oneDomain)
 	  		//println(tmp)
 	  		tmp.equalsIgnoreCase(oneDomain+".")
 	  		})
-	  	val outFile = new java.io.FileWriter(outPath + oneDomain)
+	  	//val outFile = new java.io.FileWriter(outPath + oneDomain)
 	  	val timestamp = hitRecords.map(r => r._1).toArray
 
 	  	for(t <- timestamp){
 	  		println("TIMESTAMP: " + t)
 	  		val filename = new parseUtils().convertStampToFilename(t)
+	  		val rdd1 = sc.textFile(dataPath + filename(0)).map(x => new ParseDNSFast().convert(x))
+	  		val rdd2 = sc.textFile(dataPath + filename(1)).map(x => new ParseDNSFast().convert(x))
+	  		var partial_data = rdd2.++(rdd1)
+	  		if (filename.length == 3){
+	  			
+	  			val rdd3 = sc.textFile(dataPath + filename(2)).map(x => new ParseDNSFast().convert(x)) 
+	  			partial_data = partial_data.++(rdd3)	
+	  		}
+	  		
+	  		partial_data.filter(r => ((t - r._1) < 60 && (t - r._1) > 0)).filter(r => {
+	  				val tmp = new parseUtils().parseDomain(r._5, oneDomain+".")
+	  				val distance = new DLDistance().distance(tmp, oneDomain+".")
+	  				distance <= 2 && distance > 0
+	  				}).foreach(println)
+
+/*
 	  		for(name <- filename){
 	  			val partial_data = sc.textFile(dataPath + name).map(x => new ParseDNSFast().convert(x))
 	  			partial_data.filter(r => ((t - r._1) < 60 && (t - r._1) > 0)).filter(r => {
-	  				val tmp = new parseUtils().parseDomain(r._5, oneDomain)
-	  				val distance = new DLDistance().distance(tmp, oneDomain)
+	  				val tmp = new parseUtils().parseDomain(r._5, oneDomain+".")
+	  				val distance = new DLDistance().distance(tmp, oneDomain+".")
 	  				distance <= 2 && distance > 0
-	  				}).foreach(r => {
-	  					val str = r._1.toString + "," + r._2.toString + "," + r._3 + "," +r._4 + "," + r._5 + "\n"
-	  					outFile.write(str)
-	  					})
-	  		}
+	  				}).foreach(println)*/
+	  					//r => {
+	  					//val str = r._1.toString + "," + r._2.toString + "," + r._3 + "," +r._4 + "," + r._5 + "\n"
+	  					//outFile.write(str)
+	  					//})
+	  		
 	  	}
-	  	outFile.close
+	  	//outFile.close
 
-	  }
+	  }*/
+
+	  val oneDomain = webList.toArray.apply(0)
+	  println(oneDomain)
+	  val tmp = data.filter(r =>{
+	  	val temp = new parseUtils().parseDomain(r._5, oneDomain+".")
+	  	val distance = new DLDistance().distance(temp, oneDomain+".")
+	  	distance <=2
+	  	})
+
+	  println("Count: " + tmp.count)
 	}
 }
