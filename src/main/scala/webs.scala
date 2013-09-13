@@ -2,6 +2,7 @@ package org.edmond.webs
 
 import org.edmond.DLDistance._
 import org.edmond.utils._
+import org.edmond.Partitioner._
 import org.edmond.dnsproc_spark._
 import org.apache.log4j.Logger
 import org.apache.log4j.Level
@@ -9,7 +10,9 @@ import org.apache.log4j.Level
 
 import spark.SparkContext
 import spark.SparkContext._
+import spark.PairRDDFunctions
 
+import util.control.Breaks._
 import scala.io.Source
 import scala.io._
 import java.io.File
@@ -28,12 +31,12 @@ object webs extends Serializable {
 	  val dataPath = "/data1/sie/ch202/201212/"
 
 	  //Reading correct domain name from file
-	  val sourceFile = "./weblist/500_1000"
+	  val sourceFile = "./weblist/test.file"
 	  val webList = sc.textFile(sourceFile).cache
 
 	  //Read DNS records 
-	  val original_data = sc.textFile("/data1/sie/ch202/201212/raw_processed.201212*.gz")
-
+	  //val original_data = sc.textFile("/data1/sie/ch202/201212/raw_processed.201212*.0.gz")
+	  val original_data = sc.textFile("/data1/sie/ch202/201212/raw_processed.20121201.0100.1354323600.064745979.0.gz")
 	  //Parse answer
 	  val data = original_data.map(x => new ParseDNSFast().convert(x))
 
@@ -85,6 +88,37 @@ object webs extends Serializable {
 
 	  }*/
 
+	  val partitioner = new HashPartitioner_firstElement(webList.count.asInstanceOf[Int])
+	  val arrWeb = webList.toArray
+	  val data_pair = data.map(r => {
+	  	var oneDomain = new scala.collection.mutable.StringBuilder()
+	  	breakable{
+	  		for( domain <- arrWeb) {
+	  	 		val tmp = new parseUtils().parseDomain(r._5, domain+".")
+	  	 		val distance = new DLDistance().distance(tmp, domain+".")
+	  	 		if (distance <= 2){
+	  	 			oneDomain.clear()
+	  	 			oneDomain.append(domain)
+	  	 			break
+	  	 		}
+	  	 	}
+	  	 	oneDomain.clear()
+	  	 	oneDomain.append("NOTHING")
+	  	}
+	  	(oneDomain.toString, r) 
+	  }).filter(r => (!r._1.contentEquals("NOTHING")))
+
+	  var func = new PairRDDFunctions(data_pair)
+	  val data_partitions = func.partitionBy(partitioner)
+
+	  data_partitions.foreachPartition(r => {
+	  
+	  		val filename = r.take(1).toArray.apply(0)
+	  		r.map(record => record._2).saveAsTextFile(outPath+filename)
+	 
+	  	})
+
+	  /*
 	  val oneDomain = webList.toArray.apply(0)
 	  println(oneDomain)
 	  val tmp = data.filter(r =>{
@@ -94,5 +128,6 @@ object webs extends Serializable {
 	  	})
 
 	  println("Count: " + tmp.count)
+	  */
 	}
 }
