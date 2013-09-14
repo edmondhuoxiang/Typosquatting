@@ -214,8 +214,46 @@ class ParseDNSFast {
 		  	return (new DNSInfo(parts(0).toInt, parts(1).toInt, parts(2), parts(3), parts(4)+parts(5), 
 		  			parts(6).toInt, parts(7).toInt, parts.slice(8, parts.length))).toTuple
 		}
+	}
+
+	def antiConvert(record: (Int, Int, String, String, String, Int, Int, List[Array[String]], List[Array[String]], List[Array[String]])) : String = {
+		val line = new scala.collection.mutable.StringBuilder()
+		line.clear
+		line.append(record._1 + "," + record._2 + "," + record._3 + "," + record._4 + "," + record._5 + "," + record._6 + "," + record._7 + ",")
+		line.append(record._8.size + ",")
+		if(record._8.size != 0){
+			//line.append(record._8.apply(0).size + ",")
+			record._8.foreach(arr => {
+				line.append(arr.size + ",")
+				val str = arr.mkString(",")
+				line.append(str + ",")
+				})
+		}
+		line.append(record._9.size + ",")
+		if(record._9.size != 0){
+			//line.append(record._9.apply(0).size + ",")
+			record._9.foreach(arr => {
+				line.append(arr.size + ",")
+				val str = arr.mkString(",")
+				line.append(str + ",")
+				})
+		}
+		line.append(record._10.size)
+		if(record._10.size != 0){
+			line.append(",")
+			for(i <- 0 until record._10.size){
+				line.append(record._10.apply(i).size + ",")
+				val str = record._10.apply(i).mkString(",")
+				line.append(str)
+
+				if(i < (record._10.size - 1))
+					line.append(",")
+			}
+		}
+		return line.toString
 	}	
 }
+
 
 object FastTest {
 
@@ -244,6 +282,32 @@ object FastTest {
    	these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles)
    }
 
+   def printRecord(record: (Int, Int, String, String, String, Int, Int, List[Array[String]], List[Array[String]], List[Array[String]])) = {
+      print(record._1 + ", " + record._2 + ", " + record._3 + ", " + record._4 + ", " + record._5 + ", " + record._6 + ", " + record._7 + ", ")
+      print("{")
+      for (arr <- record._8){
+         print("||")
+         for(a <- arr){
+            print("(" + a + ")")
+         }
+      }
+      print("}, {")
+      for (arr <- record._9){
+         print("||")
+         for(a <- arr){
+            print("(" + a + ")")
+         }
+      }
+      print("}, {")
+      for (arr <- record._10){
+         print("||")
+         for(a <- arr){
+            print("(" + a + ")")
+         }
+      }
+      print("}\n")
+   }
+
    def main(args: Array[String]): Unit = {       
    		//for(t <- test_values) {
    		//  println(ParseDNSFast.fasterSplit(t).mkString(", "))
@@ -259,17 +323,27 @@ object FastTest {
    		
    		//val original_data = sc.parallelize(test_values)
    		//val original_data = sc.textFile("./spcRecord")
-   		val original_data = sc.textFile("/data1/sie/ch202/201212/*.0.gz")
-   		//val original_data = sc.textFile("/data1/sie/ch202/201212/test_data")
+   		//val original_data = sc.textFile("/data1/sie/ch202/201212/*.0.gz")
+   		val original_data = sc.textFile("/data1/sie/ch202/201212/test_data")
    		val out = new java.io.FileWriter(outPath + "ocm_result.txt")
 
    		try { 
    			val data = original_data.map( x => new ParseDNSFast().convert(x))
 
+   			data.foreach(r => printRecord(r))
 
+   			println("********************")
 
-   			val count = data.count()
-   			println("Count is " + count)
+   			val data_2 = data.map(r => {
+   				new ParseDNSFast().antiConvert(r)
+   				})
+
+   			data_2.foreach(println)
+
+   			println("*******************")
+   			data_2.map( x => new ParseDNSFast().convert(x)).foreach(printRecord)
+   		//	val count = data.count()
+   		//	println("Count is " + count)
 
    		
    		//	val sortedRecords = ocmRecords.map(r => (r._1, r)).sortByKey(true).map(r => r._2)
@@ -302,9 +376,9 @@ object FastTest {
    			println(res.count)
    			println(sortedRecords.getClass)*/
 
-			out.write("There are " + count + "records\n")
+		//	out.write("There are " + count + "records\n")
 			//out.write("There are " + countOcmRcd + " records ending with \".ocm.\"\n")
-			out.close
+		//	out.close
    		} catch {
      	case _ :  java.lang.NumberFormatException =>
    		}

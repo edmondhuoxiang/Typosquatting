@@ -49,6 +49,7 @@ class HashPartitioner(partitions: Int) extends Partitioner {
  	def numPartitions = partitions
 
  	def getPartition(key: Any): Int = {
+ 		//println("key: " + key)
  		if(key == null){
  			return 0
  		} else {
@@ -69,26 +70,43 @@ class HashPartitioner(partitions: Int) extends Partitioner {
  	}
 }
 
-class HashPartitioner_firstElement(partitions: Int) extends Partitioner {
+class HashPartitioner_firstElement[K: ClassManifest, V: ClassManifest](partitions: Int) extends Partitioner {
 	def numPartitions = partitions
 
-	def getPartition(key: Any): Int = {
-		if(key._1 == null){
-			return 0
-		} else {
-			val mod = key._1.hashCode % partitions
-			if (mod < 0) {
-				mod + partitions
+	def getPartition(key: Any): Int = key match {
+		case pair: (K, V) => {
+			println("pair: " + pair)
+			if(pair._1 == null){
+				return 0
 			} else {
-				mod
+				val mod = pair._1.hashCode % partitions
+				if(mod < 0){
+					mod + partitions
+				} else {
+					mod
+				}
+				
 			}
 		}
+		case other => {
+			println("other: " + other)
+			if(key == null){
+				return 0
+			} else {
+				val mod = key.hashCode % partitions
+				if (mod < 0) {
+					mod + partitions
+				} else {
+					mod
+				}
+			}
 		
+		}
 	}
 
 	override def equals(other: Any): Boolean = other match{
-		case h: HashPartitioner_firstElement => 
-			h.numPartitions == numPartitions
+		//case h: HashPartitioner_firstElement => 
+		//	h.numPartitions == numPartitions
 		case _ => 
 			false
 	}

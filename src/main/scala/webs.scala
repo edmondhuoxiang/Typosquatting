@@ -31,12 +31,13 @@ object webs extends Serializable {
 	  val dataPath = "/data1/sie/ch202/201212/"
 
 	  //Reading correct domain name from file
+	  //val sourceFile = "./weblist/500_1000"
 	  val sourceFile = "./weblist/test.file"
 	  val webList = sc.textFile(sourceFile).cache
 
 	  //Read DNS records 
 	  //val original_data = sc.textFile("/data1/sie/ch202/201212/raw_processed.201212*.0.gz")
-	  val original_data = sc.textFile("/data1/sie/ch202/201212/raw_processed.20121201.0100.1354323600.064745979.0.gz")
+	  val original_data = sc.textFile("/data1/sie/ch202/201212/raw_processed.201212*.0.gz")
 	  //Parse answer
 	  val data = original_data.map(x => new ParseDNSFast().convert(x))
 
@@ -88,7 +89,7 @@ object webs extends Serializable {
 
 	  }*/
 
-	  val partitioner = new HashPartitioner_firstElement(webList.count.asInstanceOf[Int])
+	  val partitioner = new HashPartitioner(webList.count.asInstanceOf[Int]*2)
 	  val arrWeb = webList.toArray
 	  val data_pair = data.map(r => {
 	  	var oneDomain = new scala.collection.mutable.StringBuilder()
@@ -108,14 +109,27 @@ object webs extends Serializable {
 	  	(oneDomain.toString, r) 
 	  }).filter(r => (!r._1.contentEquals("NOTHING")))
 
+	  //data_pair.foreach(println)
+	  println("There are totally " + data_pair.count + " records.")
+
 	  var func = new PairRDDFunctions(data_pair)
 	  val data_partitions = func.partitionBy(partitioner)
 
 	  data_partitions.foreachPartition(r => {
 	  
-	  		val filename = r.take(1).toArray.apply(0)
-	  		r.map(record => record._2).saveAsTextFile(outPath+filename)
-	 
+	  		//val filename = r.take(1).toArray.apply(0)._1
+	  		//println("Filename: " + filename)
+	  		//val tmp_rdd = sc.parallelize(r.toSeq)
+	  		//tmp_rdd.saveAsTextFile(outPath + filename)
+	  		if(r.nonEmpty){
+	  			val filename = r.take(1).toArray.apply(0)._1
+	  			//println("*************************")
+	  			println("Filename: " + filename)
+	  			val outFile = new java.io.FileWriter(outPath + filename)
+	  			r.map(record => new ParseDNSFast().antiConvert(record._2)).foreach(r => outFile.write(r+"\n"))
+	  			outFile.close
+	  			//tmp_rdd.saveAsTextFile(outPath + filename)
+	  		}
 	  	})
 
 	  /*
