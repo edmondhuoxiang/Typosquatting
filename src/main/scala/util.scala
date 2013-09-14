@@ -4,6 +4,8 @@ import java.util.Date
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
 
+import org.edmond.DLDistance._
+
 class parseUtils{
 	def parseDomain(domain_1: String, domain_2: String): String = {
 		val num = domain_2.count(_ == '.') + 1
@@ -107,6 +109,43 @@ def convertStampToFilename(timestamp: Int): Array[String] ={
 
 				return Array(filename1, filename2)
 			}
+		} 
+	}
+
+	def lookUpString(target: String, sortedArr: Array[String], start: Int, end: Int): Int = {
+	/*	println("target: "+target)
+		println("LENGTH: " + sortedArr.length)
+		println("start: "+start)
+		println("end: "+end)
+	*/	if(start == end){
+			val tmp = parseDomain(target, sortedArr.apply(start)+".")
+			val distance = new DLDistance().distance(tmp, sortedArr.apply(start)+".")
+			if( distance <=2 ){
+				return start
+			} else {
+				return -1
+			}
+		}
+		else if( start > end){
+			return -1
+		}
+
+		var curIndex = -1
+		curIndex = (start + end) / 2;
+		//println("curIndex: "+curIndex)
+		var middleValue = sortedArr.apply(curIndex)
+		//println("middleValue: " + middleValue)
+		val tmp_target = parseDomain(target, middleValue + ".")
+		val dist = new DLDistance().distance(tmp_target, middleValue)
+		if (dist <= 2){
+			return curIndex
+		}
+		else if(target < middleValue){
+
+			return lookUpString(target, sortedArr, start, curIndex-1)
+		}
+		else{
+			return lookUpString(target, sortedArr, curIndex+1, end)
 		}
 	}	
 }

@@ -11,6 +11,7 @@ import org.apache.log4j.Level
 import spark.SparkContext
 import spark.SparkContext._
 import spark.PairRDDFunctions
+import spark.OrderedRDDFunctions
 
 import util.control.Breaks._
 import scala.io.Source
@@ -31,13 +32,15 @@ object webs extends Serializable {
 	  val dataPath = "/data1/sie/ch202/201212/"
 
 	  //Reading correct domain name from file
-	  //val sourceFile = "./weblist/500_1000"
-	  val sourceFile = "./weblist/test.file"
-	  val webList = sc.textFile(sourceFile).cache
+	  val sourceFile = "./weblist/500_1000"
+	  //val sourceFile = "./weblist/test.file"
+	  val webList = sc.textFile(sourceFile)
+	  val sortFunc = new OrderedRDDFunctions(webList.map(r => (r, 1)))
+	  val sortedList = sortFunc.sortByKey()
 
 	  //Read DNS records 
-	  //val original_data = sc.textFile("/data1/sie/ch202/201212/raw_processed.201212*.0.gz")
 	  val original_data = sc.textFile("/data1/sie/ch202/201212/raw_processed.201212*.0.gz")
+	  //val original_data = sc.textFile("/data1/sie/ch202/201212/raw_processed.20121201.0100.1354323600.064745979.0.gz")
 	  //Parse answer
 	  val data = original_data.map(x => new ParseDNSFast().convert(x))
 
@@ -90,10 +93,11 @@ object webs extends Serializable {
 	  }*/
 
 	  val partitioner = new HashPartitioner(webList.count.asInstanceOf[Int]*2)
-	  val arrWeb = webList.toArray
+	  val arrWeb = sortedList.map(r => r._1).toArray
 	  val data_pair = data.map(r => {
-	  	var oneDomain = new scala.collection.mutable.StringBuilder()
+	  	/*var oneDomain = new scala.collection.mutable.StringBuilder()
 	  	breakable{
+
 	  		for( domain <- arrWeb) {
 	  	 		val tmp = new parseUtils().parseDomain(r._5, domain+".")
 	  	 		val distance = new DLDistance().distance(tmp, domain+".")
@@ -105,12 +109,20 @@ object webs extends Serializable {
 	  	 	}
 	  	 	oneDomain.clear()
 	  	 	oneDomain.append("NOTHING")
+	  	}*/
+	  	val index = new parseUtils().lookUpString(r._5, arrWeb, 0, arrWeb.length-1)
+	  	if(index > -1){
+	  		val oneDomain = arrWeb.apply(index)
+	  		println(oneDomain + " " + r._5)
+	  		(oneDomain, r)
+	  	} else {
+	  		val oneDomain = "NOTHING"
+	  		(oneDomain, r)
 	  	}
-	  	(oneDomain.toString, r) 
 	  }).filter(r => (!r._1.contentEquals("NOTHING")))
 
 	  //data_pair.foreach(println)
-	  println("There are totally " + data_pair.count + " records.")
+	  //println("There are totally " + data_pair.count + " records.")
 
 	  var func = new PairRDDFunctions(data_pair)
 	  val data_partitions = func.partitionBy(partitioner)
