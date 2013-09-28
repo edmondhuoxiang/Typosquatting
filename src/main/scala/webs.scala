@@ -17,6 +17,9 @@ import util.control.Breaks._
 import scala.io.Source
 import scala.io._
 import java.io.File
+import java.io.FileWriter
+import java.io.BufferedWriter
+import java.io.IOException
 
 object webs extends Serializable {
 	def main(args: Array[String]): Unit = {
@@ -92,7 +95,7 @@ object webs extends Serializable {
 
 	  }*/
 
-	  val partitioner = new HashPartitioner(webList.count.asInstanceOf[Int]*2)
+	  val partitioner = new HashPartitioner(webList.count.asInstanceOf[Int])
 	  val arrWeb = sortedList.map(r => r._1).toArray
 	  val data_pair = data.map(r => {
 	  	/*var oneDomain = new scala.collection.mutable.StringBuilder()
@@ -113,7 +116,7 @@ object webs extends Serializable {
 	  	val index = new parseUtils().lookUpString(r._5, arrWeb, 0, arrWeb.length-1)
 	  	if(index > -1){
 	  		val oneDomain = arrWeb.apply(index)
-	  		println(oneDomain + " " + r._5)
+	  		//println(oneDomain + " " + r._5)
 	  		(oneDomain, r)
 	  	} else {
 	  		val oneDomain = "NOTHING"
@@ -128,19 +131,21 @@ object webs extends Serializable {
 	  val data_partitions = func.partitionBy(partitioner)
 
 	  data_partitions.foreachPartition(r => {
-	  
-	  		//val filename = r.take(1).toArray.apply(0)._1
-	  		//println("Filename: " + filename)
-	  		//val tmp_rdd = sc.parallelize(r.toSeq)
-	  		//tmp_rdd.saveAsTextFile(outPath + filename)
 	  		if(r.nonEmpty){
 	  			val filename = r.take(1).toArray.apply(0)._1
-	  			//println("*************************")
 	  			println("Filename: " + filename)
-	  			val outFile = new java.io.FileWriter(outPath + filename)
-	  			r.map(record => new ParseDNSFast().antiConvert(record._2)).foreach(r => outFile.write(r+"\n"))
-	  			outFile.close
-	  			//tmp_rdd.saveAsTextFile(outPath + filename)
+	  			val file = new File(outPath + filename)
+	  			//if file doesn't exists, then create it
+	  			if(!file.exists()){
+	  				file.createNewFile();
+	  			}
+	  			val fileWriter = new FileWriter(file.getName(),true);
+	  			val bufferwriter = new BufferedWriter(fileWriter);
+	  			
+	  			//val outFile = new java.io.FileWriter(outPath + filename)
+	  			r.map(record => new ParseDNSFast().antiConvert(record._2)).foreach(r => bufferwriter.write(r+"\n"))
+	  			//outFile.close
+	  			bufferwriter.close
 	  		}
 	  	})
 

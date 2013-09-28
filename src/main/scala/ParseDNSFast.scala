@@ -246,6 +246,7 @@ class ParseDNSFast {
 				val str = record._10.apply(i).mkString(",")
 				line.append(str)
 
+
 				if(i < (record._10.size - 1))
 					line.append(",")
 			}
