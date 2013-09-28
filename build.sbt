@@ -22,3 +22,4 @@ libraryDependencies ++= Seq(
 				    javaOptions in myHprofTask += "-Xrunhprof:cpu=times,depth=8"
 					  )
 }
+
