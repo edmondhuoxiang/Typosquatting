@@ -3,6 +3,8 @@ package org.edmond.utils
 import java.util.Date
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
+import java.io.File
+import scala.util.matching.Regex
 
 import org.edmond.DLDistance._
 
@@ -50,7 +52,7 @@ class parseUtils{
 		return report
 	}
 
-def convertStampToFilename(timestamp: Int): Array[String] ={
+	def convertStampToFilename(timestamp: Int): Array[String] ={
 		// Convert timestamp in second to filename
 		//val initial_timestamp = 1354320000 //local machine
 		//val end_timestamp = 1356916500 //local machine
@@ -148,4 +150,19 @@ def convertStampToFilename(timestamp: Int): Array[String] ={
 			return lookUpString(target, sortedArr, curIndex+1, end)
 		}
 	}	
+
+}
+
+class ListFiles(){
+		def recursiveListFiles(f: File): Array[File] = {
+		val these = f.listFiles
+		these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles(_))
+	}
+
+	def recursiveListFiles(f: File, r: Regex): Array[File] = {
+		val these = f.listFiles
+		val good = these.filter(f=>r.findFirstIn(f.getName).isDefined)
+		good ++ these.filter(_.isDirectory).flatMap(recursiveListFiles(_,r))
+	}
+	
 }
