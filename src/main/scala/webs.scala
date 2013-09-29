@@ -43,7 +43,7 @@ object webs extends Serializable {
 	  val dir = new File(dataPath)
 	  val r = new scala.util.matching.Regex("(^raw_processed.201212).*(0.gz$)")
 	  val files = new ListFiles().recursiveListFiles(dir, r)
-	  val numPerTime = 3
+	  val numPerTime = 4
 
 
 	  var index = 0
@@ -55,7 +55,7 @@ object webs extends Serializable {
 	  val arrWeb = sortedList.map(r => r._1).toArray
 
 	  while(index < files.length){
-	  	println(files.apply(index))
+	  	//println(files.apply(index))
 	  	var num=0
 	  	if(index+numPerTime < files.length){
 	  		num = numPerTime
