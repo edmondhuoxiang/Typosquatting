@@ -59,10 +59,10 @@ object getPair extends Serializable {
 	  			num = files.length - index;
 	  		}
 
-	  		println("Processing files from " +(index+1)+ " to " + (index+num));
+	  		println("Processing files from " +(index+1)+ " to " + (index+num))
 	  		val data = sc.textFile(files.apply(index).toString).map(x => new ParseDNSFast().convert(x))
 	  		val domain = getDomain(files.apply(index).toString)
-	  		val correctRcd = data.filter(r=>{
+	  		val correctRcd = data.filter(r => {
 	  			val rcdDomain = new parseUtils().parseDomain(r._5, domain+".")
 	  			val dis = new DLDistance().distance(rcdDomain, domain+".") 
 	  			dis == 0
@@ -70,10 +70,29 @@ object getPair extends Serializable {
 
 	  		correctRcd.foreach(r => {
 	  			val time = r._1
-	  			data.filter(rcd => ((rcd._1 <= time) && ((time - rcd._1) < 60))).foreach(r => println(r._1 + " " +r._5))
-	  			})
-	  		
+	  			val domain1 = new parseUtils().parseDomain(r._5, domain+".") 
+	  			val filtered_data = data.filter(rcd => ((rcd._1 <= time) && ((time - rcd._1) < 60))).filter(rcd => {
+	  				val domain2 = new parseUtils().parseDomain(rcd._5, domain+".")
+	  				val dis = new DLDistance().distance(domain1, domain2)
+	  				(dis>0 && dis<2)
+	  				})
 
+	  			val filename = domain
+	  			val file = new File(outPath + filename)
+	  			//if file doesn't exists, then create it
+	  			if(!file.exists()){
+	  				file.createNewFile()
+	  			}
+	  			val fileWriter = new FileWriter(file.getAbsoluteFile(),true);
+	  			val bufferwriter = new BufferedWriter(fileWriter);
+	  			//val r_string = new ParseDNSFast().antiConvert(r);
+	  			//filtered_data.map(record => new ParseDNSFast().antiConvert(record)).foreach(println)
+	  			filtered_data.map(record => new ParseDNSFast().antiConvert(record)).toArray.foreach(rcd => {
+	  				bufferwriter.write(rcd+"\n")
+	  				bufferwriter.write(r+"\n")
+	  				})
+	  			bufferwriter.close
+	  			})
 	  		index+=num
 	  	}
 	  	
