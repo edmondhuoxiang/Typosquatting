@@ -154,7 +154,7 @@ class parseUtils{
 }
 
 class ListFiles(){
-		def recursiveListFiles(f: File): Array[File] = {
+	def recursiveListFiles(f: File): Array[File] = {
 		val these = f.listFiles
 		these ++ these.filter(_.isDirectory).flatMap(recursiveListFiles(_))
 	}

@@ -1,0 +1,220 @@
+package org.edmond.webs
+
+import org.edmond.dnsproc_spark._
+import org.apache.log4j.Logger
+import org.apache.log4j.Level
+import org.edmond.utils._
+import org.edmond.DLDistance._
+
+import scala.io.Source
+import scala.io._
+import java.io.File
+import java.io.FileWriter
+import java.io.BufferedWriter
+import java.io.IOException
+
+import spark.SparkContext
+import spark.SparkContext._
+
+object test extends Serializable {
+	def main(args: Array[String]): Unit = {
+		System.setProperty("spark.default.parallelism","500")
+	  	Logger.getLogger("spark").setLevel(Level.INFO)
+
+	  	val sparkHome = "/Users/edmond/spark-0.7.3"
+	  	val jarFile = "target/scala-2.9.3/dnsudf_spark_2.9.3-0.0.jar"
+	  	val master = "local[20]"
+		val sc = new SparkContext(master, "dnsudf_spark", sparkHome, Seq(jarFile))
+	  	val inputPath = "./webfiles"
+	  	val outPath = "./res/"
+
+	  	val dir = new File(inputPath)
+	 	val files = new ListFiles().recursiveListFiles(dir)
+	  	val numPerTime = 4
+
+	  	val pairOfDomain = new scala.collection.mutable.ArrayBuffer[(String, String)]()
+	  	
+
+	  	var i=0
+	  	while(i < files.length){
+
+	  		//ceate output file for each input file
+	  		val hostname = files.apply(i).toString.split("/").apply(2)
+	  		val file = new File(outPath + hostname)
+
+	  		if(!file.exists()){
+	  				file.createNewFile()
+	  			}
+	  		val fileWriter = new FileWriter(file.getAbsoluteFile(),true);
+	  		val bufferwriter = new BufferedWriter(fileWriter);
+
+	  		//Read data from input file
+	  		var original_data = sc.textFile(files.apply(i).toString)
+	  		val recordData = original_data.map(x => new ParseDNSFast().convert(x))
+	  		var data = recordData.map(x => {
+	  			new parseUtils().parseDomain(x._5, hostname+".")
+	  			})
+	  		
+	  		//All distinct domain name appeared in the current file is saved in domainArr
+	  		val domainArr = data.distinct().filter(r=>{
+	  			val distance = new DLDistance().distance(r, hostname+".")
+	  			distance <= 2
+	  			}).toArray().cache()
+
+	  		val domainCount = new scala.collection.mutable.Map((String, Long))
+	  		val domainPairCount = new scala.collection.mutable.Map((String, Array[(String, Long)]))
+
+	  		var index=0
+
+	  		bufferwriter.write("Host Name: " + hostname+".\n");
+	  		bufferwriter.write("Count of distinct webpage: " + domainArr.length + "\n")
+	  		
+	  		val countTotal = data.filter(r=>{
+	  			val distance = new DLDistance().distance(r, hostname+".")
+	  			distance <= 2
+	  			}).count()
+	  		bufferwriter.write("Total Record: " + countTotal + "\n")
+	  		//val list = new scala.collection.mutable.ArrayBuffer[(String, Long)]()
+	  		while(index < domainArr.length){
+	  			val count1 = data.filter(r => r == domainArr.apply(index)).count
+	  			domainCount.+=((domainArr.apply(index),count1))
+	  			//println(domainArr.apply(index)+": "+(count1.toFloat/countTotal.toFloat))
+	  			index+=1
+	  		
+	  		// Get the distribution of each Domain in this file
+	  		index = 0
+	  		val keySet = domainCount.keySet()
+	  		keySet.foreach(r =>{
+	  			val tmp = domainCount(r).toFloat
+	  			bufferwriter.write(r + ":" + (tmp/countTotal.toFloat)+"\t")
+	  			index+=1
+	  			if(index % 7 == 0){
+	  				bufferwriter.write("\n")
+	  			}
+	  			})
+	  		bufferwriter.write("\n")
+
+
+	  		keySet.toArray.foreach(key => {
+
+	  			val compress = recordData.filter(x => {
+	  				val tmp = new parseUtils.parseDomain(x._5, key)
+	  				tmp == key})
+
+	  			val count_t = compress.count
+	  			val timeLimit = compress.map(x => (x._1, x._3)).toArray
+	  			index = 0
+	  			val tmpArr = new scala.collection.mutable.ArrayBuffer[(String, Long)]()
+	  			while(index < domainArr.length){
+	  				if(domainArr.apply(index) != key){
+	  					val tmpSet = compress.filter(r => {
+	  						val j=0
+	  						val flag = false
+	  						while(j < timeLimit.length){
+	  							val duration = timeLimit.apply(j)._1 - r._1
+	  							if(duration > 0 && duration < 60 && timeLimit.apply(j)._2 == r._3){
+	  								flag = true
+	  							}
+	  							j += 1
+	  						}
+	  						flag
+	  						})
+	  					val tmpCount = tmpSet.count
+	  					if(tmpCount!=0)
+	  					tmpArr.+=(domainArr.apply(index), tmp)
+	  				}
+
+	  				index+=1
+	  			}
+
+
+	  		var index_list = 0
+	  		while(index_list < listSorted.length){
+	  			var candidate = listSorted.apply(index_list)._1
+
+	  			bufferwriter.write("Candidate: P(XXX|"+candidate+")\n")
+	  			val compress = recordData.filter(x => {
+	  				val tmp = new parseUtils().parseDomain(x._5, candidate)
+	  				tmp == candidate
+	  				})
+	  			val count_t = compress.count
+	  			val timeLimit = compress.map(x => (x._1, x._3)).toArray
+	  			index = 0
+	  			val list2 = new collection.mutable.MutableList[(String, Long)]()
+	  			val list3 = new collection.mutable.MutableList[(String, Long)]()
+	  			while(index < domainArr.length){
+	  				if(domainArr.apply(index) != candidate){
+	  					val tmpset = recordData.filter(x => {
+	  						val tmp = new parseUtils().parseDomain(x._5, candidate)
+	  						tmp == domainArr.apply(index) 
+	  						}).filter(r => {
+	  							var j=0
+	  							var	 flag = false
+	  							while(j < timeLimit.length){
+	  								val duration = timeLimit.apply(j)._1 - r._1
+	  								if(duration > 0 && duration < 60 && timeLimit.apply(j)._2 == r._3){
+	  									flag = true
+	  								}
+	  								j += 1
+	  							}
+	  							flag
+	  							})
+	  					val tmpCount=tmpset.count
+	  					if(tmpCount!=0)
+	  						list2.+=((domainArr.apply(index),tmpCount))
+
+
+	  					val tmpset2 = recordData.filter(x => {
+	  						val tmp = new parseUtils().parseDomain(x._5, candidate)
+	  						tmp == domainArr.apply(index)
+	  						}).filter(r => {
+	  							var j=0
+	  							var flag = false
+	  							while(j < timeLimit.length){
+	  								val duration = r._1 - timeLimit.apply(j)._1
+	  								if(duration > 0 && duration < 60 && timeLimit.apply(j)._2 == r._3){
+	  									flag = true
+	  								}
+	  								j += 1
+	  							}
+	  							flag
+	  							})
+	  					val tmpCount2 = tmpset2.count
+	  					if(tmpCount2!=0)
+	  					list3.+=((domainArr.apply(index),tmpCount2))
+
+	  				}
+	  				index += 1
+	  			}
+	  			val list2Sorted = list2.sortWith(_._2 > _._2)
+	  			val list3Sorted = list3.sortWith(_._2 > _._2)
+	  			index=0
+	  			while(index < list2Sorted.length){
+	  				bufferwriter.write(list2Sorted.apply(index)._1+":"+list2Sorted.apply(index)._2.toFloat/count_t.toFloat+"\t")
+	  				index += 1
+	  				if(index % 7 == 0){
+	  					bufferwriter.write("\n")
+	  				}
+	  			}
+	  			bufferwriter.write("\n")
+	  			
+
+
+	  			bufferwriter.write("Candidate: P("+candidate+"|XXX)\n")
+
+	  			index=0
+	  			while(index < list3Sorted.length){
+	  				bufferwriter.write(list3Sorted.apply(index)._1+":"+list3Sorted.apply(index)._2.toFloat/count_t.toFloat+"\t")
+	  				index += 1
+	  				if(index % 7 == 0){
+	  					bufferwriter.write("\n")
+	  				}
+	  			} 
+	  			bufferwriter.write("\n")
+	  			index_list += 1
+	  		}
+	  		bufferwriter.close;
+	  		i+=1
+	  	}
+	}
+}
