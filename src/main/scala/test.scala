@@ -164,7 +164,7 @@ object test extends Serializable {
 						if(!popWeb.endsWith("."))
 							popWebBuffer.append(".")
 						breakable{
-							println("domain:" + domainBuffer.toString+", popWeb: "+ popWebBuffer.toString)
+							//println("domain:" + domainBuffer.toString+", popWeb: "+ popWebBuffer.toString)
 							if(domainBuffer.toString == popWebBuffer.toString){
 
 								popDomain.+=(domainBuffer.toString)
