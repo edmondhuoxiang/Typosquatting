@@ -14,3 +14,14 @@ run
 package
 run
 exit
+package
+run
+val resultBuffer = new scala.collection.mutable.StringBuilder()
+package
+run
+package
+run
+package
+run
+2
+run

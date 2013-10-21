@@ -18,6 +18,81 @@ import spark.SparkContext
 import spark.SparkContext._
 
 object test extends Serializable {
+
+	def isDomainInWebArray(domain: String, webArr: Array[String]): Array[String] = {
+		val result = new scala.collection.mutable.ArrayBuffer[String]()
+		var index = 0
+		while(index < webArr.length){
+			val fullName = webArr.apply(index)
+			val domainName = fullName.split('.').apply(0)
+			if(domainName == domain)
+				result.+=(fullName)
+			index+=1
+		}
+		return result.toArray
+	}
+
+	def generateDomainTypoList(sc: SparkContext): Unit = {
+		val zoneFiles = "/data1/sie/zonefiles/com.zone-20130101"
+		val webFiles = "/Users/edmond/Typosquatting/weblist/500_1000"
+		val domainFilesDir = "/Users/edmond/Typosquatting/webfiles/"
+		val outDir = "./res/"
+
+		val outFileName = "domainAndTypo.txt"
+		val outFile = new File(outDir+outFileName)
+		if(!outFile.exists()){
+			outFile.createNewFile()
+		}
+		val outFileWriter = new FileWriter(outFile.getAbsoluteFile, false)
+		val outFileBUfferWriter = new BufferedWriter(outFileWriter)
+
+		val popWebsites = sc.textFile(webFiles).toArray
+
+		val comZones = sc.textFile(zoneFiles)
+		val distinctComZones = comZones.filter(line =>{
+			val lineArr = line.split(" ")
+			if(lineArr.length < 2)
+				false
+			else
+				lineArr.apply(1) == "NS" && lineArr.apply(0) != ""
+		}).map(line => {
+			val lineArr = line.split(" ")
+			lineArr.apply(0)
+		}).distinct.toArray
+
+		var i = 0
+		while(i < distinctComZones.length){
+			val domain = distinctComZones.apply(i)
+			val domainArr = isDomainInWebArray(domain.toLowerCase, popWebsites)
+			var index = 0
+			while(index < domainArr.length){
+				val domainName = domainArr.apply(index)
+				//check whether the file is existed.
+				val inFile = new File(domainFilesDir+domainName)
+				if(inFile.exists()){
+					//open file
+					val records = sc.textFile(domainFilesDir+domainName).map(x => new ParseDNSFast().convert(x)).map(r=>r._5).distinct
+					records.foreach(println)
+					val resultBuffer = new scala.collection.mutable.StringBuilder()
+					resultBuffer.append(domainName)
+					val recordsArr = records.toArray
+					var j = 0
+					while(j < recordsArr.length){
+						resultBuffer.append(" "+recordsArr.apply(j))
+						j+=1
+					}
+					resultBuffer.append("\n")
+					outFileBUfferWriter.write(resultBuffer.toString)
+
+				}
+				index+=1
+			}
+			i+=1
+		}
+		outFileBUfferWriter.close
+	}
+
+
 	def main(args: Array[String]): Unit = {
 		System.setProperty("spark.default.parallelism","500")
 	  	Logger.getLogger("spark").setLevel(Level.INFO)
@@ -29,7 +104,9 @@ object test extends Serializable {
 	  	val inputPath = "./webfiles"
 	  	val outPath = "./res/"
 
-	  	val dir = new File(inputPath)
+
+	  	generateDomainTypoList(sc)
+	  /*	val dir = new File(inputPath)
 	 	val files = new ListFiles().recursiveListFiles(dir)
 	  	val numPerTime = 4
 
@@ -276,6 +353,6 @@ object test extends Serializable {
 	  		bufferwriter_summary.write("("+r._1+","+r._2+")\n")
 	  		})
 	  	bufferwriter_summary.close
-	  	arr.foreach(println)
+	  	arr.foreach(println)*/
 	}
 }
