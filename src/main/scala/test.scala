@@ -136,6 +136,74 @@ object test extends Serializable {
 		}
 	}
 
+	def cleanAndDivide(sc: SparkContext): Unit = {
+		val inFileDir="./res/domainAndTypo/"
+		val outFileDir = "./res/domainAndTypo/"
+		val webFiles = "/Users/edmond/Typosquatting/weblist/500_1000"
+
+		val popWebsites = sc.textFile(webFiles).toArray
+
+		//get list of all files
+		val fileList = new ListFiles().recursiveListFiles(new File(inFileDir))
+		for(file <- fileList){
+			println(file.toString)
+			val records = sc.textFile(file.toString).toArray
+			if(records.length > 0){
+				val line = records.apply(0)
+				val domainArr = line.split(" ")
+				val popDomain = new scala.collection.mutable.ArrayBuffer[String]()
+				for(domain <- domainArr){
+					val domainBuffer = new scala.collection.mutable.StringBuilder()
+					domainBuffer.append(domain)
+					if(!domain.endsWith("."))
+						domainBuffer.append(".")
+					for(popWeb <- popWebsites){
+						//println("popWebsites: "+popWeb)
+						val popWebBuffer = new scala.collection.mutable.StringBuilder()
+						popWebBuffer.append(popWeb)
+						if(!popWeb.endsWith("."))
+							popWebBuffer.append(".")
+						breakable{
+							println("domain:" + domainBuffer.toString+", popWeb: "+ popWebBuffer.toString)
+							if(domainBuffer.toString == popWebBuffer.toString){
+
+								popDomain.+=(domainBuffer.toString)
+								break
+							}
+						}
+					}	
+				}
+
+				//Add all pop domains in a HashMap as keys
+				val hash = new scala.collection.mutable.HashMap[String, scala.collection.mutable.ArrayBuffer[String]]()
+				for(domain <- popDomain.toArray){
+					hash.+=((domain, new scala.collection.mutable.ArrayBuffer[String]))
+				}
+				for(domain <- domainArr){
+					val domainBuffer = new scala.collection.mutable.StringBuilder()
+					domainBuffer.append(domain)
+					if(!domain.endsWith("."))
+						domainBuffer.append(".")
+					for(candidate <- popDomain){
+						val distance = new DLDistance().distance(domainBuffer.toString, candidate)
+	  					if(distance > 1 && distance <= 2){
+	  						hash.apply(candidate).+=(domainBuffer.toString)
+	  					}
+					}
+				}
+
+				//Rewrite all ArrayBuffers in hash map in to the file
+				val outFileWriter = new FileWriter(outFileDir + "/" + file.getName, false)
+				val outFileBufferWriter = new BufferedWriter(outFileWriter)
+				for(domain <- hash.keySet){
+					val str = hash.apply(domain).mkString
+					outFileBufferWriter.write(domain+" "+str+"\n")
+				}
+				outFileBufferWriter.close
+			}
+		}
+	}
+
 
 	def main(args: Array[String]): Unit = {
 		System.setProperty("spark.default.parallelism","500")
@@ -148,8 +216,9 @@ object test extends Serializable {
 	  	val inputPath = "./webfiles"
 	  	val outPath = "./res/"
 
-	  	dealWithZoneFiles(sc)
-	  	generateDomainTypoList(sc)
+	  	//dealWithZoneFiles(sc)
+	  	//generateDomainTypoList(sc)
+	  	cleanAndDivide(sc)
 	  /*	val dir = new File(inputPath)
 	 	val files = new ListFiles().recursiveListFiles(dir)
 	  	val numPerTime = 4
