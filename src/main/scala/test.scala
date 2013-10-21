@@ -19,6 +19,50 @@ import spark.SparkContext._
 
 object test extends Serializable {
 
+	def dealWithZoneFiles(sc: SparkContext) = {
+		val zoneFiles = "/data1/sie/zonefiles/com.zone-20130101"
+		val redundantFiles = "./res/redundantZones"
+		val distinctDir = "./res/distinctZones"
+
+		//Read one big file from disk
+		val comZones = sc.textFile(zoneFiles)
+
+		//Get needed field (redundeant) by filtering and mapping
+		val redundantZones = comZones.filter(line => {
+			val lineArr = line.split(" ")
+			if(lineArr.length < 2)
+				false
+			else
+			lineArr.apply(1) == "NS" && lineArr.apply(0) != ""
+		}).map(line => {
+			val lineArr = line.split(" ")
+			lineArr.apply(0)
+		})
+
+		//Save into several files
+		redundantZones.saveAsTextFile(redundantFiles)
+
+		val targetDir = new File(distinctDir)
+		//if The target dir doesn't exist, then create it
+		if(!targetDir.exists()){
+			targetDir.mkdir()
+		}
+		//get the list of redundantFiles
+		val r = new scala.util.matching.Regex("^part-*")
+		val filesArr = new ListFiles().recursiveListFiles(new File(redundantFiles), r)
+		//deal with each file
+		for(file <- filesArr){
+			val tmpRDD = sc.textFile(file.getAbsoluteFile.toString)
+			//Create file's handle
+			val outFile = new File(distinctDir+"/"+file.getName)
+			val outFileWriter = new FileWriter(outFile.getAbsoluteFile,false)
+			val outFileBufferWriter = new BufferedWriter(outFileWriter)
+			tmpRDD.distinct.toArray.foreach(line => outFileBufferWriter.write(line+"\n"))
+			outFileBufferWriter.close
+		}
+
+
+	}
 	def isDomainInWebArray(domain: String, webArr: Array[String]): Array[String] = {
 		val result = new scala.collection.mutable.ArrayBuffer[String]()
 		var index = 0
@@ -39,6 +83,7 @@ object test extends Serializable {
 		val outDir = "./res/"
 
 		val outFileName = "domainAndTypo.txt"
+		val comDomain = "comDomain"
 		val outFile = new File(outDir+outFileName)
 		if(!outFile.exists()){
 			outFile.createNewFile()
@@ -58,12 +103,56 @@ object test extends Serializable {
 		}).map(line => {
 			val lineArr = line.split(" ")
 			lineArr.apply(0)
-		}).distinct.toArray
+		})
 
-		var i = 0
-		while(i < distinctComZones.length){
-			val domain = distinctComZones.apply(i)
+		println(distinctComZones.count)
+        val tmpArr = distinctComZones.distinct
+        println(tmpArr.count)
+        tmpArr.saveAsTextFile(outDir+comDomain)
+
+		distinctComZones.foreach(domain => {
+			//println("Is there!#################################")
+			println(domain)
 			val domainArr = isDomainInWebArray(domain.toLowerCase, popWebsites)
+			//println("There is!")
+			var index = 0
+			while(index < domainArr.length){
+				val domainName = domainArr.apply(index)
+				//check whether the file is existed.
+				val inFile = new File(domainFilesDir+domainName)
+				if(inFile.exists()){
+					try { 
+					  	//open file
+						val records = sc.textFile(domainFilesDir+domainName).map(x => new ParseDNSFast().convert(x)).map(r=>r._5).distinct
+						//val records = io.Source.fromFile(domainFilesDir+domainName).getLines.map(x => new ParseDNSFast().convert(x)).map(r=>r._5).toSeq.distinct
+
+						records.foreach(println)
+						val resultBuffer = new scala.collection.mutable.StringBuilder()
+						resultBuffer.append(domainName)
+						val recordsArr = records.toArray
+						var j = 0
+						while(j < recordsArr.length){
+							resultBuffer.append(" "+recordsArr.apply(j))
+							j+=1
+						}
+						resultBuffer.append("\n")
+						outFileBUfferWriter.write(resultBuffer.toString)
+					} catch {
+						 case e: Exception => 
+					}
+				}
+				//println(domainArr.apply(index))
+				index+=1
+			}
+		})
+
+	/*	var i = 0
+		//while(i < distinctComZones.length){
+		distinctComZones.foreach(domain => {
+			//val domain = distinctComZones.apply(i)
+			println("Is there!#################################")
+			val domainArr = isDomainInWebArray(domain.toLowerCase, popWebsites)
+			println("There is!")
 			var index = 0
 			while(index < domainArr.length){
 				val domainName = domainArr.apply(index)
@@ -71,7 +160,9 @@ object test extends Serializable {
 				val inFile = new File(domainFilesDir+domainName)
 				if(inFile.exists()){
 					//open file
-					val records = sc.textFile(domainFilesDir+domainName).map(x => new ParseDNSFast().convert(x)).map(r=>r._5).distinct
+					//val records = sc.textFile(domainFilesDir+domainName).map(x => new ParseDNSFast().convert(x)).map(r=>r._5).distinct
+					val records = io.Source.fromFile(domainFilesDir+domainName).getLines.map(x => new ParseDNSFast().convert(x)).map(r=>r._5).toSeq.distinct
+
 					records.foreach(println)
 					val resultBuffer = new scala.collection.mutable.StringBuilder()
 					resultBuffer.append(domainName)
@@ -87,8 +178,8 @@ object test extends Serializable {
 				}
 				index+=1
 			}
-			i+=1
-		}
+			//i+=1
+		})*/
 		outFileBUfferWriter.close
 	}
 
@@ -104,8 +195,8 @@ object test extends Serializable {
 	  	val inputPath = "./webfiles"
 	  	val outPath = "./res/"
 
-
-	  	generateDomainTypoList(sc)
+	  	dealWithZoneFiles(sc)
+	  	//generateDomainTypoList(sc)
 	  /*	val dir = new File(inputPath)
 	 	val files = new ListFiles().recursiveListFiles(dir)
 	  	val numPerTime = 4
