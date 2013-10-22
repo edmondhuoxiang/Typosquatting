@@ -186,8 +186,21 @@ object test extends Serializable {
 						domainBuffer.append(".")
 					for(candidate <- popDomain){
 						val distance = new DLDistance().distance(domainBuffer.toString, candidate)
-	  					if(distance > 1 && distance <= 2){
-	  						hash.apply(candidate).+=(domainBuffer.toString)
+	  					if(distance > 0 && distance <= 2){
+	  						var index = 0
+	  						var flag = true
+	  						while(index < hash.apply(candidate).length){
+	  							breakable{
+	  								if(hash.apply(candidate).apply(index) == domainBuffer.toString){
+	  									flag = false
+	  									break
+	  								}	  								
+	  							}
+	  							index+=1
+	  						}
+	  						if(flag){
+	  							hash.apply(candidate).+=(domainBuffer.toString)
+	  						}
 	  					}
 					}
 				}
@@ -196,7 +209,7 @@ object test extends Serializable {
 				val outFileWriter = new FileWriter(outFileDir + "/" + file.getName, false)
 				val outFileBufferWriter = new BufferedWriter(outFileWriter)
 				for(domain <- hash.keySet){
-					val str = hash.apply(domain).mkString
+					val str = hash.apply(domain).mkString(" ")
 					outFileBufferWriter.write(domain+" "+str+"\n")
 				}
 				outFileBufferWriter.close
@@ -219,6 +232,9 @@ object test extends Serializable {
 	  	//dealWithZoneFiles(sc)
 	  	//generateDomainTypoList(sc)
 	  	cleanAndDivide(sc)
+
+
+
 	  /*	val dir = new File(inputPath)
 	 	val files = new ListFiles().recursiveListFiles(dir)
 	  	val numPerTime = 4
