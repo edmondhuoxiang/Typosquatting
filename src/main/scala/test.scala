@@ -319,7 +319,7 @@ object test extends Serializable {
 					}
 					if(flag){
 
-						val dnsRecords = sc.textFile(webFilesDir+tmpName).map(x => {
+						val dnsRecords = sc.textFile(webFilesDir+tmpName, 120).map(x => {
 							new ParseDNSFast().convert(x)
 						})
 						for(typoCandidate <- domainsArr){

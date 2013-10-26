@@ -11,6 +11,8 @@ import spark.SparkContext._
 import scala.io.Source
 import scala.io._
 import java.io.File
+import java.io.FileWriter
+import java.io.BufferedWriter
 
 object Main extends Application{
 
@@ -45,16 +47,39 @@ object Main extends Application{
       print("}\n")
    }
 
+   
 
    override def main(args: Array[String]): Unit = {
-   	val outPath = "./res/"
-   	Logger.getLogger("spark").setLevel(Level.INFO)
+      System.setProperty("spark.default.parallelism","500")
+      Logger.getLogger("spark").setLevel(Level.INFO)
 
-   	val sparkHome = "/Users/edmond/spark-0.7.3"
-   	val jarFile = "target/scala-2.9.3/dnsudf_spark_2.9.3-0.0.jar"
-   	val master = "local[20]"
-   	val sc = new SparkContext(master, "dnsudf_spark", sparkHome, Seq(jarFile))
+      val sparkHome = "/Users/edmond/spark-0.7.3"
+      val jarFile = "target/scala-2.9.3/dnsudf_spark_2.9.3-0.0.jar"
+      val master = "local[20]"
+      val sc = new SparkContext(master, "dnsudf_spark", sparkHome, Seq(jarFile))
 
+      //def countIp6(sc);
+      val original_data = sc.textFile("/data1/sie/ch202/201212/*.0.gz")
+      val data = original_data.map(x => new ParseDNSFast().convert(x))
+      val ipv6 = data.filter(r => {
+         r._3.contains(":")
+         })
+      val countData = data.count()
+      val countIpv6 = ipv6.count()
+      //ipv6.foreach(r => println(r._3))
+      println("Total: "+ countData+", Ipv6: "+countIpv6)
+      println("Rate: "+ (countIpv6.toDouble/countData.toDouble))
+
+      val outFile = new File("./res/ipv6Count.txt")
+      val outFileWriter = new FileWriter(outFile.getAbsoluteFile, false)
+      val outFileBufferWriter = new BufferedWriter(outFileWriter)
+      outFileBufferWriter.write("Total: "+ countData+", Ipv6: "+countIpv6+"\n")
+      outFileBufferWriter.write("Rate: "+ (countIpv6.toDouble/countData.toDouble))
+      outFileBufferWriter.close
+
+
+
+/*
       val outFile = new java.io.FileWriter(outPath + "result")
 
       //Read records from dist
@@ -106,5 +131,6 @@ object Main extends Application{
       outFile.write("The % chance that you see a lookup (from the same resolver) for that domain name within "+ timeThreshold +" seconds is " + numCached/numNotCached + "(" + numCached + "\\" + numNotCached + ").\n")
 
       outFile.close
+      */*/
    }
 }
