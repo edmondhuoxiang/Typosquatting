@@ -1,0 +1,11 @@
+#!/bin/bash
+
+cd ../
+str=`ls webfiles/`
+arr=($str)
+declare -p arr
+./sbt package
+for file in ${arr[@]}; do
+	./sbt "run $file test"
+done
+

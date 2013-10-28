@@ -22,7 +22,7 @@ object getPair extends Serializable {
 		return path.substring(index+1, path.length)
 	}
 
-	def main(args: Array[String]): Unit = {
+	def not_main(args: Array[String]): Unit = {
 		System.setProperty("spark.default.parallelism","500")
 	  	Logger.getLogger("spark").setLevel(Level.INFO)
 

@@ -1,0 +1,11 @@
+#!/bin/bash
+
+cd ../res
+
+lines=`diff -rqu distribution domainAndTypo | grep ^Only`
+str=${lines//Only in domainAndTypo: / }
+arr=($str)
+declare -f arr
+for file in ${arr[@]}; do
+	echo $file
+done

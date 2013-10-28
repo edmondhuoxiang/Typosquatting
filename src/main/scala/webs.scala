@@ -22,7 +22,7 @@ import java.io.BufferedWriter
 import java.io.IOException
 
 object webs extends Serializable {
-	def main(args: Array[String]): Unit = {
+	def not_main(args: Array[String]): Unit = {
 
 	  System.setProperty("spark.default.parallelism","500")
 	  Logger.getLogger("spark").setLevel(Level.INFO)

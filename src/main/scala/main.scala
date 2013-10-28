@@ -1,4 +1,4 @@
-package org.edmond.Main
+package org.edmond.notMain
 
 import org.edmond.dnsproc_spark._
 import org.apache.log4j.Logger
@@ -14,7 +14,7 @@ import java.io.File
 import java.io.FileWriter
 import java.io.BufferedWriter
 
-object Main extends Application{
+object NotMain extends Serializable{
 
    def recursiveListFiles(f: File): Array[File] = {
    	val these = f.listFiles
@@ -48,8 +48,8 @@ object Main extends Application{
    }
 
    
-
-   override def main(args: Array[String]): Unit = {
+/*
+   def not_main(args: Array[String]): Unit = {
       System.setProperty("spark.default.parallelism","500")
       Logger.getLogger("spark").setLevel(Level.INFO)
 
@@ -132,5 +132,5 @@ object Main extends Application{
 
       outFile.close
       */*/
-   }
+   }*/*/
 }

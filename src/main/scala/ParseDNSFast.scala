@@ -309,7 +309,7 @@ object FastTest {
       print("}\n")
    }
 
-   def main(args: Array[String]): Unit = {       
+   def not_main(args: Array[String]): Unit = {       
    		//for(t <- test_values) {
    		//  println(ParseDNSFast.fasterSplit(t).mkString(", "))
    		//}

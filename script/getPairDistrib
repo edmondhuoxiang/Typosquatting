@@ -1,0 +1,14 @@
+#!/bin/bash
+
+cd ../res
+
+lines=`diff -rqu distribution domainAndTypo | grep ^Only`
+str=${lines//Only in domainAndTypo: / }
+arr=($str)
+declare -f arr
+
+cd ..
+./sbt package
+for file in ${arr[@]}; do
+	./sbt "run $file distribution"
+done

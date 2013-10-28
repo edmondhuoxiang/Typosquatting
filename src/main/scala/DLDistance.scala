@@ -172,7 +172,7 @@ object DLDistance {
       }
     }
   */
-  def main(args: Array[String]): Unit = {
+  def not_main(args: Array[String]): Unit = {
     val outPath = "./typocandidate/"
     val sourceFile = "./weblist/500_1000"
     //val sourceFile = "./weblist/test.file"
