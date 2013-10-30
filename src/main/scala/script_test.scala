@@ -165,15 +165,20 @@ object script_test extends Serializable {
 		val record = org.apache.commons.lang.StringUtils.split(line, ",")	
 		return (record(0), record(1), record(2).toDouble, record(3).toLong, record(4).toLong)
 	}
+	def convert(record: (String, String, Double, Long, Long)): String = {
+		val string = record._1+","+record._2+","+record._3+","+record._4+","+record._5
+		return string
+	}
 
 	def getTypoRecords(sc: SparkContext, inFilePath: String, outFilePath: String) = {
 		
 		val webFilesDir = "./webfiles/"
 		val pairRecords = sc.textFile(inFilePath).map(x => convert(x)).toArray
 
-		val outputFileStr = "./tmp_res"
-		val outFileWriter2 = new FileWriter(outputFileStr, true)
-		val outFileBufferWriter2 = new BufferedWriter(outFileWriter2)
+		//val outputFileStr = "./tmp_res"
+		//val outFileWriter2 = new FileWriter(outputFileStr, true)
+		//val outFileBufferWriter2 = new BufferedWriter(outFileWriter2)
+		val hashMap = scala.collection.mutable.HashMap[String, String]()
 		for(record <- pairRecords){
 			val typo = record._1
 			val popDomain = record._2
@@ -199,10 +204,17 @@ object script_test extends Serializable {
 	  			outFileBufferWriter.close
 	  			val bool = isExistedWebsite(sc, outFilePath+typo)
 	  			if(bool)
-	  				outFileBufferWriter2.write(typo+",Yes\n")
+	  				//outFileBufferWriter2.write(typo+",Yes\n")
+	  				hashMap.+=((typo, "yes"))
 	  			else
-	  				outFileBufferWriter2.write(typo+",No\n")
+	  				//outFileBufferWriter2.write(typo+",No\n")
+	  				hashMap.+=((typo, "no"))
 			}
+		}
+		val outFileWriter2 = new FileWriter(inFilePath, false)
+		val outFileBufferWriter2 = new BufferedWriter(outFileWriter2)
+		for(record <- pairRecords){
+			outFileBufferWriter2.write(convert(record)+","+hashMap(record._1)+"\n")
 		}
 		outFileBufferWriter2.close
 	}
