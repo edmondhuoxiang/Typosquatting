@@ -92,7 +92,7 @@ object script_test extends Serializable {
 		return false
 	}
 
-	def getDistribution(sc: SparkContext, inFilePath: String, outFilePath: String): Unit = {
+	def getPairDistribution(sc: SparkContext, inFilePath: String, outFilePath: String): Unit = {
 		/*
 		val inFileDir = "./res/domainAndTypo/"
 		val webFilesDir = "./webfiles/"
@@ -161,10 +161,144 @@ object script_test extends Serializable {
 		//}
 	}
 
-	def main(arg: Array[String]) = {
+	def convert(line: String): (String, String, Double, Long, Long) = {
+		val record = org.apache.commons.lang.StringUtils.split(line, ",")	
+		return (record(0), record(1), record(2).toDouble, record(3).toLong, record(4).toLong)
+	}
+
+	def getTypoRecords(sc: SparkContext, inFilePath: String, outFilePath: String) = {
+		
+		val webFilesDir = "./webfiles/"
+		val pairRecords = sc.textFile(inFilePath).map(x => convert(x)).toArray
+
+		val outputFileStr = "./tmp_res"
+		val outFileWriter2 = new FileWriter(outputFileStr, true)
+		val outFileBufferWriter2 = new BufferedWriter(outFileWriter2)
+		for(record <- pairRecords){
+			val typo = record._1
+			val popDomain = record._2
+			val filenameBuilder = new scala.collection.mutable.StringBuilder()
+			filenameBuilder.append(popDomain)
+			val filename = filenameBuilder.splitAt(filenameBuilder.length-1)._1
+
+			//check whether the file is existed in ./webfiles
+			val recordFile = new File(webFilesDir+filename.toString)
+			if(recordFile.exists){
+				val dnsRecords = sc.textFile(webFilesDir+filename.toString, 20).map(x => {
+					new ParseDNSFast().convert(x)
+				})
+				val typoRecords = dnsRecords.filter(record => {
+					val tmp = new parseUtils().parseDomain(record._5, popDomain)
+					tmp == typo
+				})
+				val outFileWriter = new FileWriter(outFilePath+typo, false)
+				val outFileBufferWriter = new BufferedWriter(outFileWriter)
+				typoRecords.map(record => new ParseDNSFast().antiConvert(record)).toArray.foreach(rcd => {
+	  				outFileBufferWriter.write(rcd+"\n")
+	  			})
+	  			outFileBufferWriter.close
+	  			val bool = isExistedWebsite(sc, outFilePath+typo)
+	  			if(bool)
+	  				outFileBufferWriter2.write(typo+",Yes\n")
+	  			else
+	  				outFileBufferWriter2.write(typo+",No\n")
+			}
+		}
+		outFileBufferWriter2.close
+	}
+
+	def isRootNameServer(ns: String): Boolean ={
+		val rootNS = Array("A.GTLD-SERVERS.NET.",
+						"G.GTLD-SERVERS.NET.",
+						"H.GTLD-SERVERS.NET.",
+ 						"C.GTLD-SERVERS.NET.",
+ 						"I.GTLD-SERVERS.NET.",
+ 						"B.GTLD-SERVERS.NET.",
+ 						"D.GTLD-SERVERS.NET.",
+ 						"L.GTLD-SERVERS.NET.",
+ 						"F.GTLD-SERVERS.NET.",
+ 						"J.GTLD-SERVERS.NET.",
+ 						"K.GTLD-SERVERS.NET.",
+ 						"E.GTLD-SERVERS.NET.",
+ 						"M.GTLD-SERVERS.NET.")
+		for(root <- rootNS){
+			if(root.equalsIgnoreCase(ns))
+				return true
+		}
+		return false
+	}
+
+
+	def isExistedWebsite(sc: SparkContext, inFilePath: String): Boolean = {
+		val dnsRecords = sc.textFile(inFilePath, 20)map(x => {new ParseDNSFast().convert(x)})
+		val totalCount = dnsRecords.count
+		var recordsArr= Array[(Int, Int, String, String, String, Int, Int, List[Array[String]], List[Array[String]], List[Array[String]])]()
+		if(totalCount > 20){
+			recordsArr = dnsRecords.take(20)
+		}
+		else{
+			recordsArr = dnsRecords.toArray
+		}
+		object Yes extends Exception { }
+		object No extends Exception { }
+		val tmpArr = inFilePath.split("/")
+		val filename = tmpArr.apply(tmpArr.length-1) 
+		var root_count = 0
+		var server_count = 0
+		for(record <- recordsArr){
+		  	val ans_sec = record._8
+		  	val auth_sec = record._9
+		  	val add_sec = record._10
+		  	if(ans_sec.length == 0 && auth_sec.length == 0 && add_sec.length == 0){
+		  		//nothing in this record
+		  		return false
+		  	}
+
+		  	for(answer <- ans_sec){
+		  		if(answer.apply(0) == filename && answer.apply(3)=="A"){
+		  			//If there is a A rocord in answer section, it exists absolutely
+		  			return true
+		  		}
+		  		if(answer.apply(3) == "MX"){
+		  			if(!isRootNameServer(answer.apply(4).split(" ").apply(1)))
+		  				return true
+		  		}
+		  	}
+		  	var flag = true
+		  	for(auth <- auth_sec){
+		  		if(auth.apply(3) == "NS"){
+		  			if(flag){
+		  				if(!isRootNameServer(auth.apply(4).split(" ").apply(0)))
+		  				//if there is one NS record for non-root NS
+		  					server_count+=1
+		  				else
+		  					root_count+=1
+		  				flag = false
+		  			}
+		  		}
+		  		else if(auth.apply(3) == "SOA"){
+		  			if(isRootNameServer(auth.apply(4).split(" ").apply(0)))
+		  				return false
+		  		}
+		  		else if(auth.apply(3) == "MX"){
+		  			if(!isRootNameServer(auth.apply(4).split(" ").apply(1)))
+		  				return true
+		  		}
+		  	}
+		  	//if(root_count == auth_sec.length)
+		  	// if all NS records in auth are about root NS
+		  	//	return false
+
+		}
+		if(server_count < root_count)
+		  	return false
+		return true
+	}
+
+	def main(args: Array[String]): Unit = {
 		println("This is a script-started job")
 
-		if(arg.length < 2){
+		if(args.length < 2){
 			println("uage: ./sbt run inFilePath outFileDir")
 			exit(0)
 		}
@@ -176,19 +310,21 @@ object script_test extends Serializable {
 	  	val jarFile = "target/scala-2.9.3/dnsudf_spark_2.9.3-0.0.jar"
 	  	val master = "local[20]"
 		val sc = new SparkContext(master, "dnsudf_spark", sparkHome, Seq(jarFile))
-	  	val inFileDir = "./res/domainAndTypo/"
+	  	//val inFileDir = "./res/domainAndTypo/" //For getDistribution()
+	  	val inFileDir = "./res/distribution/" //For getTypoRecords()
 	  	val outFileDir = "./res/"
 
 
 		val outFileStringBuilder = new scala.collection.mutable.StringBuilder()
 		outFileStringBuilder.append(outFileDir)
-		outFileStringBuilder.append(arg.apply(1))
+		outFileStringBuilder.append(args.apply(1))
 		if(!outFileStringBuilder.toString.endsWith("/"))
 			outFileStringBuilder.append("/")
 		val outFile = new File(outFileStringBuilder.toString)
 		if(!outFile.exists())
 			outFile.mkdir()
-	  	getDistribution(sc, inFileDir+arg.apply(0), outFileStringBuilder.toString+arg.apply(0))
+	  	//getPairDistribution(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+arg.apply(0))
+	  	getTypoRecords(sc, inFileDir+args.apply(0), outFileStringBuilder.toString)
 	}
 }
 				
