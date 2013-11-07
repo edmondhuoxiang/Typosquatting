@@ -1,0 +1,24 @@
+#!/bin/bash
+
+cd ../res/sortedWebFiles
+
+#lines=`diff -rqu distribution domainAndTypo | grep ^Only`
+#str=${lines//Only in domainAndTypo: / }
+str=`ls`
+arrDir=($str)
+declare -f arrDir
+
+cd ../..
+./sbt package
+for dir in ${arrDir[@]}; do
+	echo $dir
+	cd res/sortedWebFiles/$dir
+	str=`ls part-*`
+	arrFile=($str)
+	declare -f arrFile
+	cd ../../..
+	for file in ${arrFile[@]}; do
+		echo "$dir/$file"
+		./sbt "run $dir/$file pairRecords/"
+	done
+done

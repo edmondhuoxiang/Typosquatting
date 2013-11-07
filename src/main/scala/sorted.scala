@@ -38,7 +38,7 @@ object sorted extends Serializable {
 
 	def convertFilename(str: String): String = {
 		val tmp = str.split('/')
-		val filename = tmp.apply(tmp.length-1)
+		val filename = tmp.apply(tmp.length-2)
 
 		val filenameArr = filename.split('.')
 		val outFilename = new scala.collection.mutable.StringBuilder()
@@ -57,7 +57,7 @@ object sorted extends Serializable {
 
 	def preprocessing(sc: SparkContext, inFilePath: String): Unit = {
 		println(inFilePath)
-		val data = sc.textFile(inFilePath).map(line => line.split(" ")).toArray
+		val data = sc.textFile(inFilePath,20).map(line => line.split(" ")).toArray
 		if (data.length <= 1){
 			if(data.length == 0){
 				val file = new File(inFilePath)
@@ -107,7 +107,7 @@ object sorted extends Serializable {
 		val fileList = new ListFiles().recursiveListFiles(new File(inFileDir))
 		for(file <- fileList){
 			println(file.toString)
-			val records = sc.textFile(file.toString).toArray
+			val records = sc.textFile(file.toString, 20).toArray
 			if(records.length > 0){
 				val line = records.apply(0)
 				val domainArr = line.split(" ")
@@ -311,48 +311,70 @@ object sorted extends Serializable {
 		val domainAndTypo = "./res/domainAndTypo/"
 		val domainName = convertFilename(inFilePath)
 
+		val tmpArr = inFilePath.split('/')
+		val filename = tmpArr.apply(tmpArr.length-1)
+
+		println("domainName: "+domainName)
+		println("filename: "+filename)
 		val typoFile = new File(domainAndTypo+domainName)
 		if(typoFile.exists()){
-
+/*
 			val outFile = new File(outFilePath)
 			if(outFile.exists){
 				outFile.delete
 			}
-			
+*/			
 
 			val typoArr = io.Source.fromFile(domainAndTypo+domainName).getLines.map(x => x.split(" ")).toArray.apply(0)
 
 			val dir = new File(inFilePath)
-			val previousFile = new scala.collection.mutable.StringBuilder()
+			//val previousFile = new scala.collection.mutable.StringBuilder()
 			if(dir.exists()){
-				val filesArr = new ListFiles().recursiveListFiles(dir, new Regex("^part-000*"))
-				var index=0
-				val logFile = new File("/Users/edmond/log.txt")
+				//val filesArr = new ListFiles().recursiveListFiles(dir, new Regex("^part-000*"))
+				//var index=0
+				val logFile = new File("./log.txt")
 				if(logFile.exists){
 					logFile.delete
 				}
 				
-				for(file <- filesArr){
-					val writer = new FileWriter("/Users/edmond/log.txt", true)
-					val writerbuffer = new BufferedWriter(writer)
-					writerbuffer.write(file.getAbsolutePath+"\n")
-      				writerbuffer.close
+				val writer = new FileWriter("./log.txt", true)
+				val writerbuffer = new BufferedWriter(writer)
+				writerbuffer.write(inFilePath+" ")
+      			writerbuffer.flush
+      			val t1 = System.nanoTime()
 
-					// in one File
-					val outFileWrite = new FileWriter(outFilePath, true)
-					val outFileBufferWriter = new BufferedWriter(outFileWrite)
-					val line = getPairsFromFile(sc, typoArr, file, outFileBufferWriter)
-					
-					//Deal with the records between two files
-					if(index != 0 && line != ""){
-						getLastPairsFromFile(sc, typoArr, file, outFileBufferWriter, line)
-					}
-					previousFile.clear
-					previousFile.append(file.toString)
-					outFileBufferWriter.close
-					
-					index += 1
+				// in one File
+				val outFileWrite = new FileWriter(outFilePath, true)
+				val outFileBufferWriter = new BufferedWriter(outFileWrite)
+				println("******************")
+				println("inFilePath: "+inFilePath)
+				//val line = getPairsFromFile(sc, typoArr, inFilePath, outFileBufferWriter)
+				val line  = "!23"
+				//Deal with the records between two files
+				val indexStr = filename.split('-')
+				val length = indexStr.apply(1).length
+				val index = indexStr.apply(1).toInt
+				if(index != 0 && line != ""){
+
+					val pre_index = index - 1
+					val path = inFilePath.subSequence(0, inFilePath.lastIndexOf('/')+1)
+					val format = "%0"+length.toString+"d"
+					val pre_filename = "part-"+format.format(pre_index)
+					println("PreFileName: "+path+pre_filename)
+					println("outFilePath: "+outFilePath)
+					println("*****************")
+					//getLastPairsFromFile(sc, typoArr, path+pre_filename, outFileBufferWriter, line)
 				}
+				//previousFile.clear
+				//previousFile.append(file.toString)
+				//outFileBufferWriter.close
+					
+
+				val t2 = System.nanoTime()
+				val micros = (t2 - t1) / 1000
+				writerbuffer.write("%d microseconds".format(micros) + "\n")
+      			writerbuffer.close
+				
 			}
 		}
 	}
@@ -374,10 +396,9 @@ object sorted extends Serializable {
 	  	val jarFile = "target/scala-2.9.3/dnsudf_spark_2.9.3-0.0.jar"
 	  	val master = "local[20]"
 		val sc = new SparkContext(master, "dnsudf_spark", sparkHome, Seq(jarFile))
-
-		val inFileDir = "./webfiles/"
 		val outFileDir = "./res/"
-		val outFileDir2 = "./res/pairRecords/"
+		
+		
 
 		val outFileStringBuilder = new scala.collection.mutable.StringBuilder()
 		outFileStringBuilder.append(outFileDir)
@@ -388,14 +409,21 @@ object sorted extends Serializable {
 		if(!outFile.exists())
 			outFile.mkdir()
 
-		val outFile2 = new File(outFileDir2)
-		if(!outFile2.exists())
-			outFile2.mkdir()
+
 
 		//cleanAndDivide(sc)
 		//preprocessingAll(sc, "./res/domainAndTypo/")
-		sortedDataViaTime(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+args.apply(0))
-		getAllPairs(sc, outFileStringBuilder.toString+args.apply(0), outFileDir2+args.apply(0))
+
+		val inFileDir = "./webfiles/"	
+//		sortedDataViaTime(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+args.apply(0))
+
+
+		val inFileDir2 = "./res/sortedWebFiles/"
+		val dirname = args.apply(0).split('/').apply(0)
+		val filename = args.apply(0).split('/').apply(1)
+		println(inFileDir2+args.apply(0))
+		println(outFileDir+args.apply(1)+"/"+dirname)
+		getAllPairs(sc, inFileDir2+args.apply(0), outFileDir+args.apply(1)+"/"+dirname)
 	}
 	
 }
