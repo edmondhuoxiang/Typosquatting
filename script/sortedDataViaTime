@@ -1,0 +1,16 @@
+#!/bin/bash
+
+cd ../webfiles
+
+#lines=`diff -rqu distribution domainAndTypo | grep ^Only`
+#str=${lines//Only in domainAndTypo: / }
+str=`ls`
+arr=($str)
+declare -f arr
+
+cd ../
+./sbt package
+for file in ${arr[@]}; do
+	echo $file
+	./sbt "run $file sortedWebFiles"
+done

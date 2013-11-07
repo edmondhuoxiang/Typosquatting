@@ -307,7 +307,136 @@ object script_test extends Serializable {
 		return true
 	}
 
-	def main(args: Array[String]): Unit = {
+	def convertWithStatus(line: String): (String, String, Double, Long, Long, String) = {
+		val record = org.apache.commons.lang.StringUtils.split(line, ",")	
+		return (record(0), record(1), record(2).toDouble, record(3).toLong, record(4).toLong, record(5))
+	}
+
+	def getExistedAndNonRec(sc: SparkContext, inFilePath: String, outFilePath: String): Unit = {
+
+		println(outFilePath)
+		val webFilesDir = "./webfiles/"
+		val pairRecords = sc.textFile(inFilePath).map(x => convertWithStatus(x)).toArray
+
+		if(pairRecords.length == 0)
+			return
+
+		//Create output Dir
+		val tmpArr = inFilePath.split("/")
+		val outFileName = tmpArr.apply(tmpArr.length-1)
+
+		val exsitedPath = "existed/"
+		val nonextistedPath = "nonexisted/"
+		println(outFilePath+exsitedPath)
+		val efile = new File(outFilePath+exsitedPath)
+		if(!efile.exists()){
+			efile.mkdir
+		}
+		println(outFilePath+nonextistedPath)
+		val nfile = new File(outFilePath+nonextistedPath)
+		if(!nfile.exists()){
+			nfile.mkdir
+		}
+
+		//File write buffer for existed domain
+		println(outFilePath+exsitedPath+outFileName)
+		println(outFilePath+nonextistedPath+outFileName)
+		val existedOutFileWriter = new FileWriter(outFilePath+exsitedPath+outFileName, false)
+		val existedOutFileBufferWriter = new BufferedWriter(existedOutFileWriter)
+
+		//File write buffer for non-existed domain
+
+		val nonOutFileWrite = new FileWriter(outFilePath+nonextistedPath+outFileName, false)
+		val nonOutFileBufferWriter = new BufferedWriter(nonOutFileWrite)
+
+
+		//Read Data File
+		val nameWithDot = pairRecords.apply(0)._2
+		val filenameBuffer = new scala.collection.mutable.StringBuilder()
+		filenameBuffer.append(nameWithDot)
+		val dataFile = new File(webFilesDir+filenameBuffer.dropRight(1).toString)
+
+	
+		if(dataFile.exists()){
+			val dnsRecords = sc.textFile(webFilesDir+filenameBuffer.dropRight(1).toString).map(x => {new ParseDNSFast().convert(x)}).cache
+			val popRecords = dnsRecords.filter(r => {
+					val domain = new parseUtils().parseDomain(r._5, nameWithDot)
+					domain == nameWithDot
+				}).toArray
+			for(record <- pairRecords){
+				val typo = record._1
+				val typoRecords = dnsRecords.filter(r => {
+					val domain = new parseUtils().parseDomain(r._5, typo)
+					domain == typo
+				}).cache()
+				for(popRec <- popRecords){
+					val time = popRec._1
+					val domain = nameWithDot
+					val ip = popRec._3
+					val res = typoRecords.filter(r => {
+						val tmpDomain = new parseUtils().parseDomain(r._5, typo)
+						val tmpTime = r._1
+						val tmpIp = r._3
+						val flag = compareIpAddr(tmpIp,ip)
+						flag && tmpDomain == typo && time - tmpTime > 0 && time - tmpTime <= 60
+					}).toArray
+
+					for(r <- res){
+						if(record._6 == "yes")
+							existedOutFileBufferWriter.write(typo+","+r._1+","+domain+","+time+","+ip.split('.').apply(0)+"."+ip.split('.').apply(1)+".0.0\n")
+						else
+							nonOutFileBufferWriter.write(typo+","+r._1+","+domain+","+time+","+ip.split('.').apply(0)+"."+ip.split('.').apply(1)+".0.0\n")
+					}
+				}
+			}
+		}
+		existedOutFileBufferWriter.close
+		nonOutFileBufferWriter.close
+	}
+
+	def getExistedAndNonDistr(sc: SparkContext, inFileDir: String) = {
+		val exsitedPath = "existed/*"
+		val nonextistedPath = "nonexisted/*"
+
+		val eData = sc.textFile(inFileDir + exsitedPath)
+		val nData = sc.textFile(inFileDir + nonextistedPath)
+
+		val eSum = eData.map(x => {
+			val time1 = x.split(',').apply(1).toLong
+			val time2 = x.split(',').apply(3).toLong
+			time2 - time1
+		}).reduce(_+_)
+
+		val nSum = nData.map(x => {
+			val time1 = x.split(',').apply(1).toLong
+			val time2 = x.split(',').apply(3).toLong
+			time2 - time1
+		}).reduce(_+_)
+
+		val eCount = eData.count
+		val nCount = nData.count
+
+		val filename = "distrResult.txt"
+		val outFileWrite = new FileWriter(inFileDir+filename, false)
+		val outFileBufferWriter = new BufferedWriter(outFileWrite)
+		outFileBufferWriter.write("For existed domain, there are "+eCount+" records, average time is " + (eSum.toDouble/eCount.toDouble)+"\n")
+		outFileBufferWriter.write("For non-existed domain, there are "+nCount+" records, average time is " +(nSum.toDouble/nCount.toDouble)+"\n")
+		outFileBufferWriter.close()
+
+		eData.map(x => {
+			val time1 = x.split(',').apply(1).toLong
+			val time2 = x.split(',').apply(3).toLong
+			time2 - time1
+		}).saveAsTextFile(inFileDir+"existedData.txt")
+
+		nData.map(x => {
+			val time1 = x.split(',').apply(1).toLong
+			val time2 = x.split(',').apply(3).toLong
+			time2 - time1
+		}).saveAsTextFile(inFileDir+"nonExistedData.txt")
+	}
+
+	def not_main(args: Array[String]): Unit = {
 		println("This is a script-started job")
 
 		if(args.length < 2){
@@ -336,7 +465,9 @@ object script_test extends Serializable {
 		if(!outFile.exists())
 			outFile.mkdir()
 	  	//getPairDistribution(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+arg.apply(0))
-	  	getTypoRecords(sc, inFileDir+args.apply(0), outFileStringBuilder.toString)
+	  	//getTypoRecords(sc, inFileDir+args.apply(0), outFileStringBuilder.toString)
+	  	//getExistedAndNonRec(sc, inFileDir+args.apply(0), outFileStringBuilder.toString)
+	  	getExistedAndNonDistr(sc, "./res/distrRecord/")
 	}
 }
 				
