@@ -25,7 +25,10 @@ object sorted extends Serializable {
 
 		println(inFilePath)
 		println(outFilePath)
-		val data = sc.textFile(inFilePath, 20)
+		val tmp  = sc.textFile(inFilePath, 20)
+		val count = tmp.count
+		val num = count/10000
+		val data = sc.textFile(inFilePath, num.toInt)
 
 		val dnsRecords = data.map(x => {
 			new ParseDNSFast().convert(x)
@@ -302,7 +305,8 @@ object sorted extends Serializable {
 		// All records for correct domain
 		val domainArr = dnsRecords.filter(r => {
 			val tmp = new parseUtils().parseDomain(r._5, domain)
-			tmp == domain
+			val flag = r._3.contains(".")
+			tmp == domain && flag
 		}).toArray
 
 		for(domainRecord <- domainArr){
@@ -514,12 +518,12 @@ object sorted extends Serializable {
 
 	def main(args: Array[String]): Unit = {
 	  	println("This is a script-started job")
-/*
+
 		if(args.length < 2){
 			println("uage: ./sbt run inFilePath outFileDir")
 			exit(0)
 		}
-*/
+
 		System.setProperty("spark.default.parallelism","500")
 	  	Logger.getLogger("spark").setLevel(Level.INFO)
 
@@ -528,7 +532,7 @@ object sorted extends Serializable {
 	  	val master = "local[20]"
 		val sc = new SparkContext(master, "dnsudf_spark", sparkHome, Seq(jarFile))
 		val outFileDir = "./res/"
-/*		
+		
 		
 
 		val outFileStringBuilder = new scala.collection.mutable.StringBuilder()
@@ -540,13 +544,13 @@ object sorted extends Serializable {
 		if(!outFile.exists())
 			outFile.mkdir()
 
-*/
 
-		cleanAndDivide(sc)
-		preprocessingAll(sc, "./res/domainAndTypo/")
+
+//		cleanAndDivide(sc)
+//		preprocessingAll(sc, "./res/domainAndTypo/")
 
 		val inFileDir = "./webfiles/"	
-//		sortedDataViaTime(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+args.apply(0))
+		sortedDataViaTime(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+args.apply(0))
 
 /*
 		val inFileDir2 = "./res/sortedWebFiles/"
