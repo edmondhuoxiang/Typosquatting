@@ -45,7 +45,7 @@ object sorted extends Serializable {
 		val filenameArr = filename.split('.')
 		val outFilename = new scala.collection.mutable.StringBuilder()
 		var index = 0
-		for(string <- filenameArr){
+	/*	for(string <- filenameArr){
 			if(index != filenameArr.length-1){
 				outFilename.append(filenameArr.apply(index).toUpperCase)
 				if(index != filenameArr.length-2)
@@ -54,7 +54,9 @@ object sorted extends Serializable {
 			index+=1
 		}
 
-		return outFilename.toString
+		return outFilename.toString*/
+
+		return filenameArr.apply(0).toUpperCase
 	}
 
 	def preprocessing(sc: SparkContext, inFilePath: String): Unit = {
@@ -281,7 +283,7 @@ object sorted extends Serializable {
 		// All records in the inFile 
 		val dnsRecords = sc.textFile(inFile.toString, 20).map(x => {
 			new ParseDNSFast().convert(x)
-		}).filter(x => x._3.contains(".")).cache
+		}).filter(x => x._3.contains("."))
 
 		if (dnsRecords.count == 0)
 			return ""
@@ -349,43 +351,71 @@ object sorted extends Serializable {
 
 		val firstRecord = dnsRecords.first
 
-		
+		val typoRecords = dnsRecordsFiltered.filter(r => {
+			val tmp = new parseUtils().parseDomain(r._5, domain)
+			val flag = r._3.contains(".")
+			tmp != domain && flag
+		})
 
-		//for(typo <- typoArr){
-		//	if(typo != domain){
-				val typoRecords = dnsRecordsFiltered.filter(r => {
-					val tmp = new parseUtils().parseDomain(r._5, domain)
-					val flag = r._3.contains(".")
-					tmp != domain && flag
-				}).toArray
-				for(record <- typoRecords){
-					val time = record._1
-					val src_ip = record._3
-					val windowRdd = dnsRecordsFiltered.mapPartitions(itr => itr.takeWhile(
-						_._1 < time + 60
-					))
+		val dnsArr = dnsRecordsFiltered.toArray.toList
 
-					val resultRdd = windowRdd.filter(r => {
-						val duration = r._1 - time
-						val flag = compareIpAddr(r._3, src_ip)
-						val tmpDomain = new parseUtils().parseDomain(r._5, domain)
-						tmpDomain == domain && flag && duration <=60 && duration >=0 
-					})
+		val res = typoRecords.map(record => {
+			val time = record._1
+			val src_ip = record._3
 
-					if(resultRdd.count != 0){
-						val tmpArr = resultRdd.toArray
-						for(record2 <- tmpArr){
-							val str1 = new ParseDNSFast().antiConvert(record)
-							val str2 = new ParseDNSFast().antiConvert(record2)
-							outFileBufferWriter.write(str1+";;"+str2+"\n")			
-						}
-					}
-				}
-		//	}
-		//}
+			val window = dnsArr.filter(r => {
+				val duration = r._1 - time
+				val flag = compareIpAddr(r._3, src_ip)
+				val tmpDomain = new parseUtils().parseDomain(r._5, domain)
+				tmpDomain == domain && flag && duration <= 60 && duration >= 0
+			})
+			(record, window)
+		}).toArray
+
+		for(r <- res){
+			val record1 = r._1
+			val list = r._2
+			for(l <- list){
+				val record2 = l
+				val str1 = new ParseDNSFast().antiConvert(record1)
+				val str2 = new ParseDNSFast().antiConvert(record2)
+				outFileBufferWriter.write(str1+";;"+str2+"\n")
+			}
+		}
 
 		return ""
 
+		///////////////////////////////////////
+/*
+
+		val typoRecords = dnsRecordsFiltered.filter(r => {
+			val tmp = new parseUtils().parseDomain(r._5, domain)
+			val flag = r._3.contains(".")
+			tmp != domain && flag
+		}).toArray
+		for(record <- typoRecords){
+			val time = record._1
+			val src_ip = record._3
+			val windowRdd = dnsRecordsFiltered.mapPartitions(itr => itr.takeWhile(
+				_._1 < time + 60
+			))
+			val resultRdd = windowRdd.filter(r => {
+				val duration = r._1 - time
+				val flag = compareIpAddr(r._3, src_ip)
+				val tmpDomain = new parseUtils().parseDomain(r._5, domain)
+				tmpDomain == domain && flag && duration <=60 && duration >=0 
+			})
+
+			if(resultRdd.count != 0){
+				val tmpArr = resultRdd.toArray
+				for(record2 <- tmpArr){
+					val str1 = new ParseDNSFast().antiConvert(record)
+					val str2 = new ParseDNSFast().antiConvert(record2)
+					outFileBufferWriter.write(str1+";;"+str2+"\n")			
+				}
+			}
+		}
+*/
 		//////////////////////////////////////
 /*
 		// All records for correct domain
