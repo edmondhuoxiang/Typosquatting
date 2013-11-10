@@ -108,70 +108,77 @@ object sorted extends Serializable {
 			println(file.toString)
 			val records = sc.textFile(file.toString, 20).toArray
 			if(records.length > 0){
-				val line = records.apply(0)
-				val domainArr = line.split(" ")
-				val popDomain = new scala.collection.mutable.ArrayBuffer[String]()
-				for(domain <- domainArr){
-					val domainBuffer = new scala.collection.mutable.StringBuilder()
-					domainBuffer.append(domain)
-					if(!domain.endsWith("."))
-						domainBuffer.append(".")
-					for(popWeb <- popWebsites){
-						//println("popWebsites: "+popWeb)
-						val popWebBuffer = new scala.collection.mutable.StringBuilder()
-						popWebBuffer.append(popWeb)
-						if(!popWeb.endsWith("."))
-							popWebBuffer.append(".")
-						breakable{
-							//println("domain:" + domainBuffer.toString+", popWeb: "+ popWebBuffer.toString)
-							if(domainBuffer.toString == popWebBuffer.toString){
+				for(line <- records){			
+					val domainArr = line.split(" ")
+					val popDomain = new scala.collection.mutable.ArrayBuffer[String]()
+					for(domain <- domainArr){
+						val domainBuffer = new scala.collection.mutable.StringBuilder()
+						domainBuffer.append(domain)
+						if(!domain.endsWith("."))
+							domainBuffer.append(".")
+						for(popWeb <- popWebsites){
+							//println("popWebsites: "+popWeb)
+							val popWebBuffer = new scala.collection.mutable.StringBuilder()
+							popWebBuffer.append(popWeb)
+							if(!popWeb.endsWith("."))
+								popWebBuffer.append(".")
+							breakable{
+								//println("domain:" + domainBuffer.toString+", popWeb: "+ popWebBuffer.toString)
+								if(domainBuffer.toString == popWebBuffer.toString){
 
-								popDomain.+=(domainBuffer.toString)
-								break
+									popDomain.+=(domainBuffer.toString)
+									break
+								}
 							}
+						}	
+					}
+				
+
+					//Add all pop domains in a HashMap as keys
+					val hash = new scala.collection.mutable.HashMap[String, scala.collection.mutable.ArrayBuffer[String]]()
+					for(domain <- popDomain.toArray){
+						hash.+=((domain, new scala.collection.mutable.ArrayBuffer[String]))
+					}
+					for(domain <- domainArr){
+						val domainBuffer = new scala.collection.mutable.StringBuilder()
+						domainBuffer.append(domain)
+						if(!domain.endsWith("."))
+							domainBuffer.append(".")
+						for(candidate <- popDomain){
+							val distance = new DLDistance().distance(domainBuffer.toString, candidate)
+	  						if(distance > 0 && distance <= 2){
+	  							var index = 0
+	  							var flag = true
+	  							while(index < hash.apply(candidate).length){
+	  								breakable{
+										if(hash.apply(candidate).apply(index) == domainBuffer.toString){
+	  										flag = false
+	  										break
+	  									}	  								
+	  								}
+	  								index+=1
+	  							}
+	  							if(flag){
+	 								hash.apply(candidate).+=(domainBuffer.toString)
+	  							}
+	  						}
 						}
 					}	
-				}
 
-				//Add all pop domains in a HashMap as keys
-				val hash = new scala.collection.mutable.HashMap[String, scala.collection.mutable.ArrayBuffer[String]]()
-				for(domain <- popDomain.toArray){
-					hash.+=((domain, new scala.collection.mutable.ArrayBuffer[String]))
-				}
-				for(domain <- domainArr){
-					val domainBuffer = new scala.collection.mutable.StringBuilder()
-					domainBuffer.append(domain)
-					if(!domain.endsWith("."))
-						domainBuffer.append(".")
-					for(candidate <- popDomain){
-						val distance = new DLDistance().distance(domainBuffer.toString, candidate)
-	  					if(distance > 0 && distance <= 2){
-	  						var index = 0
-	  						var flag = true
-	  						while(index < hash.apply(candidate).length){
-	  							breakable{
-	  								if(hash.apply(candidate).apply(index) == domainBuffer.toString){
-	  									flag = false
-	  									break
-	  								}	  								
-	  							}
-	  							index+=1
-	  						}
-	  						if(flag){
-	  							hash.apply(candidate).+=(domainBuffer.toString)
-	  						}
-	  					}
+				
+
+					//Rewrite all ArrayBuffers in hash map in to the file
+					for(domain <- hash.keySet){
+						val filename = domain.split('.').apply(0).toUpperCase
+						println("FILENAME: "+filename)
+						val outFileWriter = new FileWriter(outFileDir + "/" + filename, false)
+						val outFileBufferWriter = new BufferedWriter(outFileWriter)
+						val str = hash.apply(domain).mkString(" ")
+						outFileBufferWriter.write(domain+" "+str+"\n")
+						outFileBufferWriter.close
 					}
+					
 				}
-
-				//Rewrite all ArrayBuffers in hash map in to the file
-				val outFileWriter = new FileWriter(outFileDir + "/" + file.getName, false)
-				val outFileBufferWriter = new BufferedWriter(outFileWriter)
-				for(domain <- hash.keySet){
-					val str = hash.apply(domain).mkString(" ")
-					outFileBufferWriter.write(domain+" "+str+"\n")
-				}
-				outFileBufferWriter.close
 			}
 		}
 	}
@@ -507,12 +514,12 @@ object sorted extends Serializable {
 
 	def main(args: Array[String]): Unit = {
 	  	println("This is a script-started job")
-
+/*
 		if(args.length < 2){
 			println("uage: ./sbt run inFilePath outFileDir")
 			exit(0)
 		}
-
+*/
 		System.setProperty("spark.default.parallelism","500")
 	  	Logger.getLogger("spark").setLevel(Level.INFO)
 
@@ -521,7 +528,7 @@ object sorted extends Serializable {
 	  	val master = "local[20]"
 		val sc = new SparkContext(master, "dnsudf_spark", sparkHome, Seq(jarFile))
 		val outFileDir = "./res/"
-		
+/*		
 		
 
 		val outFileStringBuilder = new scala.collection.mutable.StringBuilder()
@@ -533,15 +540,15 @@ object sorted extends Serializable {
 		if(!outFile.exists())
 			outFile.mkdir()
 
+*/
 
-
-		//cleanAndDivide(sc)
-		//preprocessingAll(sc, "./res/domainAndTypo/")
+		cleanAndDivide(sc)
+		preprocessingAll(sc, "./res/domainAndTypo/")
 
 		val inFileDir = "./webfiles/"	
 //		sortedDataViaTime(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+args.apply(0))
 
-
+/*
 		val inFileDir2 = "./res/sortedWebFiles/"
 		println("args(0): "+args.apply(0))
 		val dirname = args.apply(0).split('/').apply(0)
@@ -557,6 +564,6 @@ object sorted extends Serializable {
 		println(outFileDir2+dirname)
 		getAllPairs(sc, inFileDir2+args.apply(0), outFileDir+args.apply(1)+"/"+dirname)
 		getQueriesoforAllDomains(sc, inFileDir2+args.apply(0), outFileDir2+dirname)
-	}
+*/	}
 	
 }
