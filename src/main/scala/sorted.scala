@@ -281,27 +281,113 @@ object sorted extends Serializable {
 		// All records in the inFile 
 		val dnsRecords = sc.textFile(inFile.toString, 20).map(x => {
 			new ParseDNSFast().convert(x)
-		})
+		}).filter(x => x._3.contains(".")).cache
 
 		if (dnsRecords.count == 0)
 			return ""
-/*
+
 		val ips = dnsRecords.map(x => x._3).filter(x => x.contains(".")).map(x => {
 			val arr = x.split('.')
 			val ip = arr.apply(0)+"."+arr.apply(1)+".0.0"
 			ip
 		}).distinct
-*/
-		val ips = dnsRecords.map(x => x._3).filter(x => x.contains(".")).distinct
-		val hashMap = scala.collection.mutable.HashMap[String, Int]()
+
+	//	val ips = dnsRecords.map(x => x._3).filter(x => x.contains(".")).distinct
+		
+		val ttls = dnsRecords.filter(r => {
+			val tmp = new parseUtils().parseDomain(r._5, domain)
+			val flag = r._3.contains(".")
+			tmp == domain && flag
+		}).filter(x => {
+			val ttl = getTTL(x)
+			ttl != 0
+		}).toArray
+
+
+		
+		val hashMap = scala.collection.mutable.HashMap[String, scala.collection.mutable.ArrayBuffer[(Int, Int)]]()
 		for(ip <- ips.toArray){
-			hashMap.+=((ip, 0))
+			val arr = new scala.collection.mutable.ArrayBuffer[(Int, Int)]()
+			hashMap.+=((ip, arr))
 		}
+
+		//Add all ttl time window of correct domain into hashmap
+
+		for(ttlRecord <- ttls){
+			val time = ttlRecord._1
+			val src_ip = ttlRecord._3
+			val ttl = getTTL(ttlRecord)
+
+			if(ttl!=0){
+				val tmpArr = src_ip.split('.')
+				val groupIp = tmpArr.apply(0)+"."+tmpArr.apply(1)+".0.0"
+				val tmp = hashMap(groupIp)
+				tmp.+=((time, ttl))
+			}
+		}
+
+		val dnsRecordsFiltered = dnsRecords.filter(x =>{
+			val ip = x._3
+			val tmpArr = ip.split('.')
+			val groupIp = tmpArr.apply(0)+"."+tmpArr.apply(1)+".0.0"
+			val timeArr = hashMap(groupIp).toArray
+			val time = x._1
+			var flag = true
+
+			breakable {
+				for(window <- timeArr){
+					if(time > window._1 && time < window._1+window._2){
+						flag =false
+						break
+					}
+				}
+			}
+			flag
+		}).cache
 
 
 
 		val firstRecord = dnsRecords.first
 
+		
+
+		//for(typo <- typoArr){
+		//	if(typo != domain){
+				val typoRecords = dnsRecordsFiltered.filter(r => {
+					val tmp = new parseUtils().parseDomain(r._5, domain)
+					val flag = r._3.contains(".")
+					tmp != domain && flag
+				}).toArray
+				for(record <- typoRecords){
+					val time = record._1
+					val src_ip = record._3
+					val windowRdd = dnsRecordsFiltered.mapPartitions(itr => itr.takeWhile(
+						_._1 < time + 60
+					))
+
+					val resultRdd = windowRdd.filter(r => {
+						val duration = r._1 - time
+						val flag = compareIpAddr(r._3, src_ip)
+						val tmpDomain = new parseUtils().parseDomain(r._5, domain)
+						tmpDomain == domain && flag && duration <=60 && duration >=0 
+					})
+
+					if(resultRdd.count != 0){
+						val tmpArr = resultRdd.toArray
+						for(record2 <- tmpArr){
+							val str1 = new ParseDNSFast().antiConvert(record)
+							val str2 = new ParseDNSFast().antiConvert(record2)
+							outFileBufferWriter.write(str1+";;"+str2+"\n")			
+						}
+					}
+				}
+		//	}
+		//}
+
+		return ""
+
+		//////////////////////////////////////
+/*
 		// All records for correct domain
 		val domainArr = dnsRecords.filter(r => {
 			val tmp = new parseUtils().parseDomain(r._5, domain)
@@ -318,13 +404,13 @@ object sorted extends Serializable {
 			//require all dns records in dnsRecords are sorted by timestamp
 			val windowRdd = dnsRecords.mapPartitions(itr => itr.takeWhile(
 				_._1 < time //The query for a typo domain must be present before the correct version
-			)).cache
+			))
 
 			val resultRdd = windowRdd.filter(r => {
 				val duration = time - r._1 
 				val flag = compareIpAddr(r._3, src_ip)
 				flag && duration <= 60
-			}).cache
+			})
 			if (resultRdd.count != 0){
 				for( typo <- typoArr) {
 					if(typo != domain){
@@ -380,18 +466,18 @@ object sorted extends Serializable {
 					}
 				}
 			}*/
-		}
+		}*/
 		//If there is a query for correct version at the very beginning of this file (within 60sec)
 		//it is possible that there are typo qureies for this at the previous file, the left time and 
 		//the first record for correct version should be return.
-		if((domainArr.apply(0)._1 - firstRecord._1) < 60){
+	/*	if((domainArr.apply(0)._1 - firstRecord._1) < 60){
 			val duration = 60.toLong - (domainArr.apply(0)._1 - firstRecord._1)
 			val str = new ParseDNSFast().antiConvert(domainArr.apply(0))
 			return str
 		}
 		else{
 			return ""
-		}
+		}*/
 	}
 
 	//Only get the records which can get a pair with one record in the last few seconds of one file 
@@ -550,9 +636,9 @@ object sorted extends Serializable {
 //		preprocessingAll(sc, "./res/domainAndTypo/")
 
 		val inFileDir = "./webfiles/"	
-		sortedDataViaTime(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+args.apply(0))
+//		sortedDataViaTime(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+args.apply(0))
 
-/*
+
 		val inFileDir2 = "./res/sortedWebFiles/"
 		println("args(0): "+args.apply(0))
 		val dirname = args.apply(0).split('/').apply(0)
@@ -568,6 +654,6 @@ object sorted extends Serializable {
 		println(outFileDir2+dirname)
 		getAllPairs(sc, inFileDir2+args.apply(0), outFileDir+args.apply(1)+"/"+dirname)
 		getQueriesoforAllDomains(sc, inFileDir2+args.apply(0), outFileDir2+dirname)
-*/	}
+	}
 	
 }
