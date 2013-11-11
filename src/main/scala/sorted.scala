@@ -349,7 +349,7 @@ object sorted extends Serializable {
 
 
 
-		val firstRecord = dnsRecords.first
+		val lastRecord = dnsRecords.toArray.toList.last
 
 		val typoRecords = dnsRecordsFiltered.filter(r => {
 			val tmp = new parseUtils().parseDomain(r._5, domain)
@@ -383,8 +383,15 @@ object sorted extends Serializable {
 			}
 		}
 
-		return ""
+		val lastTypoRecord = res.apply(res.length-1)._1
 
+		if((lastTypoRecord._1 - lastRecord._1) > 60 ) {
+			return ""
+		}
+		else{
+			val str = new ParseDNSFast().antiConvert(lastTypoRecord)
+			return str
+		}
 		///////////////////////////////////////
 /*
 
@@ -512,6 +519,36 @@ object sorted extends Serializable {
 
 	//Only get the records which can get a pair with one record in the last few seconds of one file 
 	def getLastPairsFromFile(sc: SparkContext, typoArr: Array[String], inFile: File, outFileBufferWriter: BufferedWriter, line: String): Unit = {
+		
+		val dnsRecords = sc.textFile(inFile.toString, 20).map(x => {
+			new ParseDNSFast().convert(x)
+		})
+
+		val typoRecord = new ParseDNSFast().convert(line)
+		val domain = typoArr.apply(0)
+		val time = typoRecord._1
+		val src_ip = typoRecord._3
+
+		val windowRdd = dnsRecords.mapPartitions(itr => itr.takeWhile(
+			_._1 < time+60
+		))
+
+		val resultRdd = windowRdd.filter(r => {
+			val flag = compareIpAddr(r._3, src_ip)
+			val tmp = new parseUtils().parseDomain(r._5, domain)
+			tmp == domain && flag
+		}).toArray
+
+		if(resultRdd.length != 0){
+			for(r <- resultRdd){
+				val str2 = new ParseDNSFast().antiConvert(r)
+				outFileBufferWriter.write(line+";;"+str2)
+			}
+		}
+
+
+		///////////////////////
+/*
 		val dnsRecords = sc.textFile(inFile.toString, 20).map(x => {
 			new ParseDNSFast().convert(x)
 		}).map(x => (x._1, x))
@@ -553,7 +590,7 @@ object sorted extends Serializable {
 				}
 			}
 
-
+*/
 	}
 
 	def getAllPairs(sc: SparkContext, inFilePath: String, outFilePath: String) = {
@@ -604,6 +641,21 @@ object sorted extends Serializable {
 				val indexStr = filename.split('-')
 				val length = indexStr.apply(1).length
 				val index = indexStr.apply(1).toInt
+
+				if( line != ""){
+					val next = index+1
+					val path = inFilePath.subSequence(0, inFilePath.lastIndexOf('/')+1)
+					val format = "%0"+length.toString+"d"	
+					val nextFilename = "part-"+format.format(next)
+					println("Next: "+path+nextFilename)
+					println("outFilePath: "+outFilePath)
+					println("*****************")
+					val infile2 = new File(path + nextFilename)
+					if(infile2.exists){
+						getLastPairsFromFile(sc, typoArr, infile2, outFileBufferWriter, line)
+					}
+				}
+/*
 				if(index != 0 && line != ""){
 
 					val pre_index = index - 1
@@ -620,7 +672,7 @@ object sorted extends Serializable {
 				//previousFile.append(file.toString)
 				//outFileBufferWriter.close
 					
-
+*/
 				val t2 = System.nanoTime()
 				val micros = (t2 - t1) / 1000
 				writerbuffer.write("%d microseconds".format(micros) + "\n")
