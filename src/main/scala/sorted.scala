@@ -230,14 +230,18 @@ object sorted extends Serializable {
 
 		println("***********Here we go***************")
 		val domainAndTypo = "./res/domainAndTypo/"
-		val domainName = convertFilename(inFile)
-
+	/*	val domainName = convertFilename(inFile)
 		val tmpArr = inFile.split('/')
 		val filename = tmpArr.apply(tmpArr.length-1)
 		val domain = tmpArr.apply(tmpArr.length-2)+"."
+	*/
+		val tmpArr = inFile.split('/')
+		val domain = tmpArr.apply(tmpArr.length-1)+"."
+		val domainName = domain.split('.').apply(0).toUpperCase
+
 		println("inFile: "+inFile)
 		println("domainName: "+domainName)
-		println("filename: "+filename)
+	//	println("filename: "+filename)
 		val file = new File(domainAndTypo+domainName)
 		if(!file.exists){
 			return
@@ -273,6 +277,7 @@ object sorted extends Serializable {
 				}
 				outFileBufferWriter.close
 			}
+			println("FINISH "+typo)
 		})
 
 
@@ -781,7 +786,7 @@ object sorted extends Serializable {
 		val inFileDir2 = "./res/sortedWebFiles/"
 		println("args(0): "+args.apply(0))
 		val dirname = args.apply(0).split('/').apply(0)
-		val filename = args.apply(0).split('/').apply(1)
+//		val filename = args.apply(0).split('/').apply(1)
 		//println(inFileDir2+args.apply(0))
 		//println(outFileDir+args.apply(1)+"/"+dirname)
 
