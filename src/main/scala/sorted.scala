@@ -221,11 +221,20 @@ object sorted extends Serializable {
 	}
 
 	def getQueriesoforAllDomains(sc: SparkContext, inFile: String, outFile: String): Unit = {
+		
+		val writer = new FileWriter("./log.txt", true)
+		val writerbuffer = new BufferedWriter(writer)
+		writerbuffer.write(inFile+" ")
+		writerbuffer.flush
+      	val t1 = System.nanoTime()
+
+		println("***********Here we go***************")
 		val domainAndTypo = "./res/domainAndTypo/"
 		val domainName = convertFilename(inFile)
 
 		val tmpArr = inFile.split('/')
 		val filename = tmpArr.apply(tmpArr.length-1)
+		val domain = tmpArr.apply(tmpArr.length-2)+"."
 		println("inFile: "+inFile)
 		println("domainName: "+domainName)
 		println("filename: "+filename)
@@ -233,7 +242,46 @@ object sorted extends Serializable {
 		if(!file.exists){
 			return
 		}
+
+		val outDir = new File(outFile)
+		if(!outDir.exists){
+			outDir.mkdir
+		}
+
+		val typoRdd = sc.textFile(domainAndTypo+domainName, 20).flatMap(x => x.split(' ')).filter(_ != domain)
+		val dnsRecords = sc.textFile(inFile, 20).map(x => new ParseDNSFast().convert(x)).toArray.toList
+		val res = typoRdd.map(typo => {
+			val resList = dnsRecords.filter(x =>{
+				val tmp = new parseUtils().parseDomain(x._5, typo)
+				tmp == typo
+			})
+			(typo, resList)
+		})
+
+
+		res.foreach(r => {
+			val typo = r._1
+			val list = r._2
+			if(list.length != 0){
+				val outPath = outFile+"/"+typo
+				val outFileWriter = new FileWriter(outPath, true)
+				val outFileBufferWriter = new BufferedWriter(outFileWriter)
+
+				for(r <- list){
+					val line = new ParseDNSFast().antiConvert(r)
+					outFileBufferWriter.write(line+"\n")
+				}
+				outFileBufferWriter.close
+			}
+		})
+
+
+
+		//////////////////////
+/*
 		val typoArr = io.Source.fromFile(domainAndTypo+domainName).getLines.map(x => x.split(" ")).toArray.apply(0)
+
+		
 
 		val outDir = new File(outFile)
 		if(!outDir.exists){
@@ -249,6 +297,13 @@ object sorted extends Serializable {
 				getQueryForDomain(sc, typo, dnsRecords, outFile+"/"+typo)
 			}
 		}
+
+*/
+
+		val t2 = System.nanoTime()
+		val micros = (t2 - t1) / 1000
+		writerbuffer.write("%d microseconds".format(micros) + "\n")
+      	writerbuffer.close
 	}
 
 	def getTTL(record: (Int, Int, String, String, String, Int, Int, List[Array[String]],List[Array[String]],List[Array[String]])): Int = {
@@ -736,7 +791,7 @@ object sorted extends Serializable {
 			outFile2.mkdir()
 		}
 		println(outFileDir2+dirname)
-		getAllPairs(sc, inFileDir2+args.apply(0), outFileDir+args.apply(1)+"/"+dirname)
+	//	getAllPairs(sc, inFileDir2+args.apply(0), outFileDir+args.apply(1)+"/"+dirname)
 		getQueriesoforAllDomains(sc, inFileDir2+args.apply(0), outFileDir2+dirname)
 	}
 	
