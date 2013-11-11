@@ -382,6 +382,8 @@ object sorted extends Serializable {
 				outFileBufferWriter.write(str1+";;"+str2+"\n")
 			}
 		}
+		if(res.length == 0)
+			return ""
 
 		val lastTypoRecord = res.apply(res.length-1)._1
 
