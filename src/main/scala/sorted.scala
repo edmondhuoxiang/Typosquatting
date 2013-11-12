@@ -310,7 +310,7 @@ object sorted extends Serializable {
 		writerbuffer.write("%d microseconds".format(micros) + "\n")
       	writerbuffer.close
 	}
-
+//
 	def getTTL(record: (Int, Int, String, String, String, Int, Int, List[Array[String]],List[Array[String]],List[Array[String]])): Int = {
 		val domain = record._5
 		val answ_section = record._8
