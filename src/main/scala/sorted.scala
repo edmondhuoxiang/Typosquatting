@@ -717,6 +717,7 @@ object sorted extends Serializable {
 						getLastPairsFromFile(sc, typoArr, infile2, outFileBufferWriter, line)
 					}
 				}
+				outFileBufferWriter.close
 /*
 				if(index != 0 && line != ""){
 
@@ -745,6 +746,125 @@ object sorted extends Serializable {
 	}
 
 
+	def isExistedWebsite(domain: String, records: List[(Int, Int, String, String, String, Int, Int, List[Array[String]], List[Array[String]], List[Array[String]])] ): Boolean = {
+		val filtedList = records.filter(r => {
+			val tmp = new parseUtils().parseDomain(r._5, domain)
+			tmp == domain
+		})
+
+		val sum = filtedList.map(r => getTTL(r)).sum
+		if(sum == 0){
+			return false
+		}
+		else{
+			return true
+		}
+		
+	}
+
+	def statistics(sc: SparkContext, inFile: String, outFile: String) = {
+
+		println("inFile: "+inFile)
+		println("outFile: "+outFile)
+
+		val domain = inFile.split('/').toList.last
+
+		val pairRecords = sc.textFile(inFile, 20).map(line => {
+			val arr = line.split(";;")
+			val typoRecord = new ParseDNSFast().convert(arr.apply(0))
+			val targetRecord = new ParseDNSFast().convert(arr.apply(1))
+			(typoRecord, targetRecord)
+		})
+
+		val typoRdd = pairRecords.map(pair => {
+			val typoRecord = pair._1
+			val typo = typoRecord._5
+			typo
+		}).distinct //get all distinct typos
+
+		val pairList = pairRecords.toArray.toList
+
+		val resLines = typoRdd.map(typo => {
+			val records = pairList.filter(pair => {
+				val typoRecord = pair._1
+				typo == typoRecord._5
+			}) //all pair-records about this typo
+
+			val pair_count = records.length
+
+
+			val distances = records.map(pair => {
+				val typoRecord = pair._1
+				val targetRecord = pair._2
+				targetRecord._1 - typoRecord._1
+			})
+			var sum = 0
+			for(dist <- distances){
+				sum += dist
+			}
+			val aver = sum.toFloat/pair_count.toFloat
+
+			val target = domain+"."
+
+			val singleRecords = io.Source.fromFile("./res/singleTypoRecord/"+domain+"/"+typo).getLines.toArray.toList.map(r => {
+				new ParseDNSFast().convert(r)
+			})
+
+			val single_count = singleRecords.length
+
+			val flag = isExistedWebsite(typo, singleRecords)
+
+			val resLine = typo+","+target+","+single_count.toString+","+pair_count+","+aver.toString+","+flag.toString
+			resLine
+		}).toArray
+
+		val outFileWrite = new FileWriter(outFile, false)
+		val outFileBufferWriter = new BufferedWriter(outFileWrite)
+		for(line <- resLines){
+			outFileBufferWriter.write(line+"\n")
+		}
+		outFileBufferWriter.close
+
+	}
+
+	def getDistribution(sc: SparkContext, inFile: String, outFile: String) = {
+		val records = sc.textFile(inFile, 20).map(line => {
+			val arr = line.split(',')
+			(arr.apply(0), arr.apply(1), arr.apply(2).toInt, arr.apply(3).toInt, arr.apply(4).toFloat, arr.apply(5).toBoolean)
+		}).filter(x => (x._4.toFloat/x._3.toFloat > 0.2))
+
+		val dir = new File("outFile")
+		if(!dir.exists){
+			dir.mkdir
+		}
+		val existedList = records.filter(r => r._6).toArray.toList
+		val nonExistedList = records.filter(r => !r._6).toArray.toList
+
+		var count1 = 0
+		var sum1 = 0.0
+		existedList.foreach(r => {
+			count1 += r._4
+			sum1 += r._4 * r._5
+		})
+
+		var count2 = 0
+		var sum2 = 0.0
+		nonExistedList.foreach(r => {
+			count2 += r._4
+			sum2 += r._4 * r._5
+		})
+
+		val outFileWrite = new FileWriter(outFile, false)
+		val outFileBufferWriter = new BufferedWriter(outFileWrite)
+
+		outFileBufferWriter.write("For existed typo domain, there are " + existedList.length + " pairs of typo and target website, " + 
+									count1 + " records. The average time is " +(sum1.toFloat/count1.toFloat)+".\n")
+		outFileBufferWriter.write("For non-existed typo domain, there are " + nonExistedList.length + " pairs of typo and target website, " + 
+									count2 + " records. The average time is " + (sum2.toFloat/count2.toFloat) + ".\n")
+
+		outFileBufferWriter.close
+
+	}
 
 	def main(args: Array[String]): Unit = {
 	  	println("This is a script-started job")
@@ -781,23 +901,35 @@ object sorted extends Serializable {
 
 		val inFileDir = "./webfiles/"	
 //		sortedDataViaTime(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+args.apply(0))
-
-
+////////////////////////
+/*
 		val inFileDir2 = "./res/sortedWebFiles/"
 		println("args(0): "+args.apply(0))
 		val dirname = args.apply(0).split('/').apply(0)
-//		val filename = args.apply(0).split('/').apply(1)
+		val filename = args.apply(0).split('/').apply(1)
 		//println(inFileDir2+args.apply(0))
 		//println(outFileDir+args.apply(1)+"/"+dirname)
 
+		getAllPairs(sc, inFileDir2+args.apply(0), outFileDir+args.apply(1)+"/"+dirname)
+*/
+/////////////////////////
+/*
 		val outFileDir2 = "./res/singleTypoRecord/"
 		val outFile2 = new File(outFileDir2)
 		if(!outFile2.exists){
 			outFile2.mkdir()
 		}
 		println(outFileDir2+dirname)
-	//	getAllPairs(sc, inFileDir2+args.apply(0), outFileDir+args.apply(1)+"/"+dirname)
 		getQueriesoforAllDomains(sc, inFileDir2+args.apply(0), outFileDir2+dirname)
+*/
+
+////////////////////////
+		val inFileDir3 = "./res/pairRecords/"
+		//statistics(sc, inFileDir3+args.apply(0), outFileStringBuilder.toString+args.apply(0))
+
+///////////////////////
+		getDistribution(sc, "./res/statistics", "./res/summary")
+
 	}
 	
 }
