@@ -1,0 +1,12 @@
+#!/bin/bash
+
+str=`ls /data1/sie/ch202/201212/*.0.gz`
+arr=($str)
+declare -f arr
+
+cd ../
+./sbt package
+for file in ${arr[@]}; do
+	echo $file
+	./sbt "run /data1/sie/ch202/201212/*.0.gz sortedWebFiles/"
+done

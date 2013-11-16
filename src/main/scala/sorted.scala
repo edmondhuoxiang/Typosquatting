@@ -866,7 +866,7 @@ object sorted extends Serializable {
 
 	}
 
-	def main(args: Array[String]): Unit = {
+	def not_main(args: Array[String]): Unit = {
 	  	println("This is a script-started job")
 
 		if(args.length < 2){
@@ -928,7 +928,7 @@ object sorted extends Serializable {
 		//statistics(sc, inFileDir3+args.apply(0), outFileStringBuilder.toString+args.apply(0))
 
 ///////////////////////
-		getDistribution(sc, "./res/statistics", "./res/summary")
+//		getDistribution(sc, "./res/statistics", "./res/summary")
 
 	}
 	
