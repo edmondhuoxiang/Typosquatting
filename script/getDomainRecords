@@ -1,13 +1,21 @@
 #!/bin/bash
 
-str=`cat raw_filelist`
-echo $str
-arr=($str)
-declare -f arr
+#arr=($str)
+#declare -f arr
 
-cd ../
-./sbt package
-for file in ${arr[@]}; do
-	echo $file
-	./sbt "run $file webfiles/"
-done
+#cd ../
+#./sbt package
+#for file in ${arr[@]}; do
+#       echo $file
+#       echo "run $file sortedWebFiles/"
+#done
+cp raw_filelist ../
+cd ..
+while read line
+do
+	    name=$line
+		    echo "Start task of file - $name" >> finish-part.txt
+			    echo "Text read from file - $name"
+				    ./sbt "run $name webfiles/"
+					    echo "End task of file - $name" >> finish-part.txt
+					done < raw_filelist
