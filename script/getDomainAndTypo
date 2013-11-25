@@ -1,13 +1,16 @@
 #!/bin/bash
 
-str=`cat raw_filelist`
+str=`ls ../res/webfiles`
 echo $str
 arr=($str)
 declare -f arr
 
+
+
 cd ../
 ./sbt package
+rm ./res/domainAndTypo/*
 for file in ${arr[@]}; do
 	echo $file
-	./sbt "run $file webfiles/"
+	./sbt "run $file domainAndTypo/"
 done

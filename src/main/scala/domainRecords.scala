@@ -116,7 +116,35 @@ object domainRecords extends Serializable {
 		
 	}
 
-	def main(args: Array[String]): Unit = {
+
+	def check(sc: SparkContext, inFile: String, outFile: String) = {
+		val filename = inFile.split('/').toList.last
+		val domain = filename+"."
+
+		val dnsRecords = sc.textFile(inFile).map(x => new ParseDNSFast().convert(x))
+
+		val distinct_domain = dnsRecords.map(r => {
+			val tmp = new parseUtils().parseDomain(r._5, domain)
+			tmp
+		}).distinct
+
+		val res = distinct_domain.filter(d => {
+			val dist = new DLDistance().distance(d, domain)
+			dist > 2
+		}).toArray
+		if(res.length > 0){
+			val fileWriter = new FileWriter(outFile,true);
+	  		val bufferwriter = new BufferedWriter(fileWriter);
+	  		bufferwriter.write(filename + " ")
+	  		for(d <- res){
+	  			bufferwriter.write(d + " ")
+	  		}
+	  		bufferwriter.write("\n")
+	  		bufferwriter.close
+		}
+	}
+
+	def not_main(args: Array[String]): Unit = {
 		println("This is a script-started job")
 
 		if(args.length < 2){
@@ -138,11 +166,17 @@ object domainRecords extends Serializable {
 	  	val webListFile = "./weblist/500_1000"
 
 	  	val webList = sc.textFile(webListFile)
-	  	
-	  	val sortFunc = new OrderedRDDFunctions(webList.map(r => (r, 1)))
+////////////////////////	  	
+	/*  	val sortFunc = new OrderedRDDFunctions(webList.map(r => (r, 1)))
 	  	val sortedList = sortFunc.sortByKey()
 	  	val arrWeb = sortedList.map(r => r._1).toArray
 
 	  	getDomainRecords(sc, args.apply(0), outPath+args.apply(1), arrWeb)
+*/
+////////////////////////
+
+
+
+		check(sc, "./res/sortedWebFiles/"+args.apply(0), outPath+"checkres.txt")
 	}
 }

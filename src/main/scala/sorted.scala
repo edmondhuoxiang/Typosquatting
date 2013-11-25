@@ -21,6 +21,49 @@ import scala.util.matching.Regex
 import sys.process._
 
 object sorted extends Serializable {
+
+	def isDomainInWebArray(domain: String, webArr: Array[String]): Boolean = {
+		for(name <- webArr){
+			if (domain == name + "."){
+				return true
+			}
+		}
+		return false
+	}
+
+	def getDomainAndTypo(sc: SparkContext, inFile: String, outFile: String) = {
+		
+		println("inFile: "+inFile)
+		println("outFile: "+outFile)
+		val popWebFile = "./weblist/top1000"
+
+		//Reading popWeb list from file
+		val popWebsites = sc.textFile(popWebFile).toArray.toList
+
+		val dnsRecords = sc.textFile(inFile).map(x => new ParseDNSFast().convert(x))
+		val filename = inFile.split('/').toList.last
+		val domain = filename+"."
+
+		val domainsRdd = dnsRecords.map(r => {
+			val domainName = new parseUtils().parseDomain(r._5, domain)
+			domainName
+		}).distinct.filter(_ != domain)
+
+		val unPopDomain = domainsRdd.filter(name => !isDomainInWebArray(name.toLowerCase, popWebsites.toArray)).toArray
+
+		val outFileWriter = new FileWriter(outFile, false)
+		val outFileBufferWriter = new BufferedWriter(outFileWriter)
+		outFileBufferWriter.write(domain)
+		if(unPopDomain.length!=0){
+			outFileBufferWriter.write(" ")
+			for(name <- unPopDomain){
+				outFileBufferWriter.write(name + " ")
+			}
+		}
+		outFileBufferWriter.close
+	}
+
+
 	def sortedDataViaTime(sc: SparkContext, inFilePath: String, outFilePath: String) = {
 
 		println(inFilePath)
@@ -866,7 +909,7 @@ object sorted extends Serializable {
 
 	}
 
-	def not_main(args: Array[String]): Unit = {
+	def main(args: Array[String]): Unit = {
 	  	println("This is a script-started job")
 
 		if(args.length < 2){
@@ -893,13 +936,20 @@ object sorted extends Serializable {
 		val outFile = new File(outFileStringBuilder.toString)
 		if(!outFile.exists())
 			outFile.mkdir()
+/////////////////////////
+		
+		val inFileDir = "./res/webfiles/"
 
+		val outFilename = args.apply(0).split('/').toList.last + "."
+		
+		getDomainAndTypo(sc, inFileDir + args.apply(0), outFileDir+args.apply(1)+outFilename)
 
+////////////////////////
 
 //		cleanAndDivide(sc)
 //		preprocessingAll(sc, "./res/domainAndTypo/")
 
-		val inFileDir = "./webfiles/"	
+//		val inFileDir = "./webfiles/"	
 //		sortedDataViaTime(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+args.apply(0))
 ////////////////////////
 /*

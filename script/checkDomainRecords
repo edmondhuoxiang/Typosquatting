@@ -1,7 +1,7 @@
 #!/bin/bash
 
-str=`cat raw_filelist`
-echo $str
+str=`ls ../res/sortedWebFiles/`
+#echo $str
 arr=($str)
 declare -f arr
 
@@ -9,5 +9,5 @@ cd ../
 ./sbt package
 for file in ${arr[@]}; do
 	echo $file
-	./sbt "run $file webfiles/"
+	./sbt "run $file ./res/"
 done
