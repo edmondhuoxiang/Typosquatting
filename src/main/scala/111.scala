@@ -109,7 +109,7 @@
     }
   }
 
-  def main(args: Array[String]): Unit = {
+  def Notmain(args: Array[String]): Unit = {
     	val sparkHome = "/Users/edmond/spark-0.7.3"
 	  	val jarFile = "target/scala-2.9.2/scala-app-template_2.9.2-0.0.jar"
 	  	val master = "local[20]"

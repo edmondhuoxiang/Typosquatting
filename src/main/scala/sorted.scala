@@ -85,6 +85,7 @@ object sorted extends Serializable {
 	def convertFilename(str: String): String = {
 		val tmp = str.split('/')
 		val filename = tmp.apply(tmp.length-2)
+		return filename+"."
 		val filenameArr = filename.split('.')
 		val outFilename = new scala.collection.mutable.StringBuilder()
 		var index = 0
@@ -280,8 +281,8 @@ object sorted extends Serializable {
 	*/
 		val tmpArr = inFile.split('/')
 		val domain = tmpArr.apply(tmpArr.length-1)+"."
-		val domainName = domain.split('.').apply(0).toUpperCase
-
+		//val domainName = domain.split('.').apply(0).toUpperCase
+		val domainName = domain
 		println("inFile: "+inFile)
 		println("domainName: "+domainName)
 	//	println("filename: "+filename)
@@ -938,11 +939,11 @@ object sorted extends Serializable {
 			outFile.mkdir()
 /////////////////////////
 		
-		val inFileDir = "./res/webfiles/"
+//		val inFileDir = "./res/webfiles/"
 
-		val outFilename = args.apply(0).split('/').toList.last + "."
+//		val outFilename = args.apply(0).split('/').toList.last + "."
 		
-		getDomainAndTypo(sc, inFileDir + args.apply(0), outFileDir+args.apply(1)+outFilename)
+//		getDomainAndTypo(sc, inFileDir + args.apply(0), outFileDir+args.apply(1)+outFilename)
 
 ////////////////////////
 
@@ -952,18 +953,18 @@ object sorted extends Serializable {
 //		val inFileDir = "./webfiles/"	
 //		sortedDataViaTime(sc, inFileDir+args.apply(0), outFileStringBuilder.toString+args.apply(0))
 ////////////////////////
-/*
+
 		val inFileDir2 = "./res/sortedWebFiles/"
 		println("args(0): "+args.apply(0))
 		val dirname = args.apply(0).split('/').apply(0)
-		val filename = args.apply(0).split('/').apply(1)
+	//	val filename = args.apply(0).split('/').apply(1)
 		//println(inFileDir2+args.apply(0))
 		//println(outFileDir+args.apply(1)+"/"+dirname)
 
-		getAllPairs(sc, inFileDir2+args.apply(0), outFileDir+args.apply(1)+"/"+dirname)
-*/
+//		getAllPairs(sc, inFileDir2+args.apply(0), outFileDir+args.apply(1)+"/"+dirname)
+
 /////////////////////////
-/*
+
 		val outFileDir2 = "./res/singleTypoRecord/"
 		val outFile2 = new File(outFileDir2)
 		if(!outFile2.exists){
@@ -971,7 +972,7 @@ object sorted extends Serializable {
 		}
 		println(outFileDir2+dirname)
 		getQueriesoforAllDomains(sc, inFileDir2+args.apply(0), outFileDir2+dirname)
-*/
+
 
 ////////////////////////
 		val inFileDir3 = "./res/pairRecords/"
